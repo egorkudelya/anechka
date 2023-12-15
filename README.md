@@ -43,3 +43,14 @@ To populate the search engine with data, call RequestRecursiveDirIndexing and pa
 Note that the directory tree is traversed recursively and the engine will index every txt file in the provided directory and its children.
 You can also call RequestTxtFileIndexing to index an individual txt file.
 The engine will index the data and make it searchable using RequestTokenSearch or RequestTokenSearchWithContext.
+
+## Demo
+
+Let's query some data and test searching capabilities of the engine. For example, executing RequestTokenSearchWithContext and passing it some token,
+in our example "conscientious", returns the following tuple:
+
+![Example Image](https://drive.google.com/uc?id=1HLaM91TeJT5SEHFjjzqb3R2h5JZJC4V3)
+
+As you can see, the message conforms to the format specified in the proto file -- we got back the time it took to execute the query in ms and
+a number of json documents, where each document contains a path to the file and a context array with the searched token.
+
