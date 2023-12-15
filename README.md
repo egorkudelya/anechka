@@ -47,7 +47,7 @@ The engine will index the data and make it searchable using RequestTokenSearch o
 ## Demo
 
 Let's query some data and test searching capabilities of the engine. For example, executing RequestTokenSearchWithContext and passing it some token,
-in our example "conscientious", returns the following tuple:
+in our сфыу "conscientious", returns the following tuple:
 
 ![Example Image](https://drive.google.com/uc?id=1HLaM91TeJT5SEHFjjzqb3R2h5JZJC4V3)
 
