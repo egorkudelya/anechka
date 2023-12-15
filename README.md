@@ -1,6 +1,6 @@
 ## Overview
 
-Welcome to Anechka, a simple search engine designed to be lightweight and easy to set up. This readme provides essential information for users to configure, run, and interact with the search engine.
+Welcome to Anechka, a simple search engine designed to be lightweight and easy to set up.
 
 ## Prerequisites
 
