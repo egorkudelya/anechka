@@ -77,7 +77,7 @@ namespace utils
         (...,
          (
              printType<decltype(std::get<I>(tup)), sec.size() - 1 == I>(std::get<I>(tup))
-                 )
+         )
         );
     }
 

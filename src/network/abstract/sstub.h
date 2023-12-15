@@ -15,7 +15,7 @@
 
 namespace net::stub
 {
-    inline constexpr uint64_t hash(std::string_view data) noexcept
+    inline constexpr uint64_t hash(std::string_view data)
     {
         return xxh64::hash(data.data(), data.size(), 0);
     }
