@@ -1,0 +1,12 @@
+net::Packet<net::ResponsePtr> {SERVER_NAME}::route(const net::SerializedPacket& frame)
+{{
+    std::string handlerName = net::deserializeHandler(frame.frame);
+    release_assert(!handlerName.empty(), "Got an empty handlerName, the packet is corrupted");
+
+    net::ResponsePtr responsePtr;
+    switch (net::stub::hash(handlerName))
+    {{
+        {ROUTING_SECTION}
+    }}
+    return {{frame.fd, {{}}, std::move(handlerName), responsePtr}};
+}}

@@ -1,0 +1,48 @@
+# basic types in the grammar:
+# int32, int64, uint64, bool, string
+
+# complex types:
+# array[any_basic_type]
+
+message Path {
+    path: string
+}
+
+message BasicToken {
+    token: string
+}
+
+message InsertResponse {
+    ok: bool,
+    indexSize: uint64,
+    engineStatus: string,
+    took: string
+}
+
+message EraseResponse {
+    ok: bool,
+    took: string
+}
+
+message SearchResponse {
+    json: string,
+    took: string
+}
+
+message ContextResponse {
+    # array of json strings with the following layout:
+    # [
+    #     {
+    #         "path": filepath,
+    #         "contexts": [sentence1, sentence2, ...]
+    #     }
+    # ]
+    result: array[string],
+    took: string
+}
+
+method RequestTxtFileIndexing(Path) -> InsertResponse;
+method RequestRecursiveDirIndexing(Path) -> InsertResponse;
+method RequestTokenDeletion(BasicToken) -> EraseResponse;
+method RequestTokenSearch(BasicToken) -> SearchResponse;
+method RequestTokenSearchWithContext(BasicToken) -> ContextResponse;

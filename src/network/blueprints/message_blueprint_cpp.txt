@@ -1,0 +1,24 @@
+namespace net::{MESSAGE_NAME}
+{{
+    void to_json(Json& json, const CoreData& core)
+    {{
+        {SERIALIZE_SECTION}
+    }}
+
+    void from_json(const Json& json, CoreData& core)
+    {{
+        {DESERIALIZE_SECTION}
+    }}
+
+    [[nodiscard]] Json {MESSAGE_NAME}::toJson() const
+    {{
+        return m_data;
+    }}
+
+    void {MESSAGE_NAME}::fromJson(const Json& json)
+    {{
+        json.get_to(m_data);
+    }}
+
+    {SOURCE_GETTER_SECTION}
+}}

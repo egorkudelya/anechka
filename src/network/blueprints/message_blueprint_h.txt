@@ -1,0 +1,22 @@
+namespace net::{MESSAGE_NAME}
+{{
+    struct CoreData
+    {{
+        {CORE_MEMBER_SECTION}
+    }};
+
+    void to_json(Json& json, const CoreData& core);
+    void from_json(const Json& json, CoreData& core);
+
+    class {MESSAGE_NAME} : public AbstractMessage
+    {{
+    public:
+        [[nodiscard]] Json toJson() const override;
+        void fromJson(const Json& json) override;
+
+        {HEADER_GETTER_SECTION}
+
+    private:
+        CoreData m_data;
+    }};
+}}

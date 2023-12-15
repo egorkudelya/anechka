@@ -1,0 +1,51 @@
+#pragma once
+
+#include "common.h"
+#include "umap.h"
+#include "xxh64_hasher.h"
+#include <memory>
+
+namespace std
+{
+    template<typename K, typename V>
+    struct hash<std::pair<K, V>>
+    {
+        inline size_t operator()(const std::pair<K, V>& v) const
+        {
+            size_t seed = 0;
+            utils::hash_combine(seed, v.first);
+            utils::hash_combine(seed, v.second);
+            return seed;
+        }
+    };
+}
+
+namespace core
+{
+    using TokenRecord = core::USet<std::pair<std::string, size_t>>;
+    using TokenRecordPtr = std::shared_ptr<TokenRecord>;
+    using ConstTokenRecordPtr = std::shared_ptr<const TokenRecord>;
+
+    class Shard
+    {
+    public:
+        Shard(float maxLoadFactor, size_t expectedTokenCount);
+        void insert(std::string&& token, const std::string& doc, size_t pos);
+        ConstTokenRecordPtr search(const std::string& token, bool& exists) const;
+        void erase(const std::string& token);
+        bool exists(const std::string& token) const;
+        float loadFactor() const;
+        bool isExpandable() const;
+        size_t size() const;
+        Json serialize() const;
+
+    private:
+        /**
+        * word -> [document_path, position]
+        */
+        SUMap<std::string, TokenRecordPtr, Xxh64Hasher> m_record;
+        const float m_maxLoadFactor;
+    };
+
+    using ShardPtr = std::shared_ptr<Shard>;
+}

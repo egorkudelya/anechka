@@ -1,0 +1,8 @@
+class {SERVER_NAME} : public net::stub::AbstractServerStub
+{{
+public:
+    {HEADER_ABSTRACT_HANDLER_SECTION}
+
+private:
+    net::Packet<net::ResponsePtr> route(const net::SerializedPacket& frame) override;
+}};
