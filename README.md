@@ -34,7 +34,7 @@ The client connects to the server and provides an interface for interacting with
 ## System Requirements
 
 - The search engine is memory-intensive, and it is recommended to have at least 8 gigabytes of RAM for optimal performance. Note that without an appropriate token count
-  estimate you are bound to notice significant perfomance degradation due to collisions.
+  estimate you are bound to notice significant performance degradation due to collisions.
 - The engine relies on file mmaping, so it is recommended that you use a 64-bit machine as a host.
   
 ## Populating the Engine
@@ -51,6 +51,5 @@ in our case "conscientious", returns the following tuple:
 
 ![Example Image](https://drive.google.com/uc?id=1HLaM91TeJT5SEHFjjzqb3R2h5JZJC4V3)
 
-As you can see, the message conforms to the format specified in the proto file -- we got back the time it took to execute the query in ms and
-a number of json documents, where each document contains the path to the file and a context array with the searched token.
+As you can see, the message conforms to the format specified in the proto file. We received the time it took to execute the query in milliseconds and a number of JSON documents. Each document contains the path to the file, along with the context array containing the sentences where the searched token appears.
 
