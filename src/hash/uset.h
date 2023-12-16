@@ -82,6 +82,10 @@ namespace core
             : m_hasher(Hash{})
             , m_size(0)
         {
+            if (reserveSize == 0)
+            {
+                reserveSize = 1;
+            }
             m_buckets.reserve(reserveSize);
             for (size_t i = 0; i < reserveSize; i++)
             {

@@ -168,6 +168,10 @@ namespace core
 
         auto initBuckets(size_t reserveSize) const
         {
+            if (reserveSize == 0)
+            {
+                reserveSize = 1;
+            }
             std::vector<std::unique_ptr<BucketType>> buckets;
             buckets.reserve(reserveSize);
             for (size_t i = 0; i < reserveSize; i++)
@@ -184,8 +188,8 @@ namespace core
         explicit SUMap(size_t reserveSize = 419)
             : m_hasher(Hash{})
             , m_size(0)
-            , m_bucketCount(reserveSize)
             , m_buckets(std::move(initBuckets(reserveSize)))
+            , m_bucketCount(m_buckets.size())
         {
         }
 
@@ -252,7 +256,16 @@ namespace core
             std::mt19937 rng(dev());
             std::uniform_int_distribution<std::mt19937::result_type> dist(0, m_buckets.size() - 1);
 
-            return getBucket(dist(rng), true).eraseRandom(defaultKey);
+            Key erased = defaultKey;
+            for (size_t i = 0; i < m_buckets.size(); i++)
+            {
+                erased = getBucket(dist(rng), true).eraseRandom(defaultKey);
+                if (erased != defaultKey)
+                {
+                    break;
+                }
+            }
+            return erased;
         }
 
         size_t size() const noexcept
