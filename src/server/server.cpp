@@ -264,7 +264,6 @@ namespace anechka
         return responsePtr;
     }
 
-
     net::ResponsePtr Anechka::RequestTokenSearchWithContext(const net::RequestPtr& requestPtr)
     {
         utils::Timer timer{};

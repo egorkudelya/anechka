@@ -16,11 +16,11 @@ namespace core
             return newRecord;
         };
 
-        auto uppendToExisting = [doc = std::string{doc}, pos = pos](auto&& record) {
+        auto appendToExisting = [doc = std::string{doc}, pos = pos](auto&& record) {
             record.second->addIfNotPresent(std::make_pair(std::move(doc), pos));
         };
 
-        m_record._insert(token, std::move(addNewRecord), std::move(uppendToExisting));
+        m_record._insert(token, std::move(addNewRecord), std::move(appendToExisting));
     }
 
     ConstTokenRecordPtr Shard::search(const std::string& token, bool& exists) const
