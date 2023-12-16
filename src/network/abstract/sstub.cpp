@@ -54,7 +54,7 @@ namespace net::stub
             return false;
         }
 
-        std::cout << "Server listening on port " << m_port  << '.' << std::endl;
+        std::cout << "Server listening on port " << m_port << '.' << std::endl;
         return true;
     }
 
@@ -142,7 +142,7 @@ namespace net::stub
 
     void AbstractServerStub::dispatchResponse(Packet<ResponsePtr>&& serverPacket)
     {
-        release_assert(serverPacket.fd.has_value() == true, "fd must be set in order to dispatch response");
+        release_assert(serverPacket.fd.has_value(), "cfd must be set in order to dispatch response");
 
         int cfd = serverPacket.fd.value();
 

@@ -47,6 +47,8 @@ namespace utils
         /**
          * Template spec specifically for client, see RequestTokenSearchWithContext
          */
+
+        std::cout << "[";
         for (const auto& t: vec)
         {
             std::cout << t;
@@ -55,6 +57,8 @@ namespace utils
                 std::cout << ", ";
             }
         }
+        std::cout << "]";
+
         if (!end)
         {
             std::cout << ", ";

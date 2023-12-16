@@ -33,8 +33,11 @@ namespace core
 
     SearchEngine::SearchEngine(const SearchEngineParams& params)
     {
+        m_params = params;
         const size_t queues = params.threads / 3 > 0 ? params.threads / 3 : 1;
+
         m_storage = std::make_shared<Shard>(params.maxLF, params.size);
+        m_cache = std::make_shared<Cache>(params.size * params.cacheSize);
         m_pool = std::make_unique<ThreadPool>(queues, params.threads, true);
         m_semantics = SemanticParams{params.toLowercase};
     }
@@ -87,13 +90,14 @@ namespace core
 
         for (auto&& token: tokenize(mmap, m_semantics.lcaseTokens))
         {
-            insertToken(std::move(token.first), strPath, token.second);
+            insert(std::move(token.first), strPath, token.second);
         }
         return true;
     }
 
-    void SearchEngine::insertToken(std::string&& token, const std::string& doc, size_t pos)
+    void SearchEngine::insert(std::string&& token, const std::string& doc, size_t pos)
     {
+        invalidateCache(token);
         m_storage->insert(std::move(token), doc, pos);
     }
 
@@ -104,7 +108,32 @@ namespace core
 
     void SearchEngine::erase(const std::string& token)
     {
+        invalidateCache(token);
         return m_storage->erase(token);
+    }
+
+    void SearchEngine::cacheTokenContext(const std::string& token, const std::vector<std::string>& contexts)
+    {
+        if (m_cache->loadFactor() > m_params.maxLF)
+        {
+            m_cache->eraseRandom();
+        }
+        m_cache->insert(std::make_pair(CacheType::ContextSearch, token), contexts);
+    }
+
+    CacheEntry SearchEngine::searchCache(CacheType::Type cacheType, const std::string& token, bool& found) const
+    {
+        CacheEntry entry = m_cache->get(std::make_pair(cacheType, token));
+        found = !entry.empty();
+        return entry;
+    }
+
+    void SearchEngine::invalidateCache(const std::string& token)
+    {
+        for (const auto& cacheType: CacheType::All)
+        {
+            m_cache->erase(std::make_pair(cacheType, token));
+        }
     }
 
     size_t SearchEngine::tokenCount() const

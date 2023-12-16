@@ -49,7 +49,7 @@ The engine will index the data and make it searchable using RequestTokenSearch o
 Let's query some data and test searching capabilities of the engine. For example, executing RequestTokenSearchWithContext and passing it some token,
 in our case "conscientious", returns the following tuple:
 
-![Example Image](https://drive.google.com/uc?id=1HLaM91TeJT5SEHFjjzqb3R2h5JZJC4V3)
+![Example Image](https://drive.google.com/uc?id=1pkI0eLNgG8YZtJsYMyKFzJKV7hLVgCri)
 
 As you can see, the message conforms to the format specified in the proto file. We received the time it took to execute the query in milliseconds and a number of JSON documents. Each document contains the path to the file, along with the context array containing the sentences where the searched token appears.
 

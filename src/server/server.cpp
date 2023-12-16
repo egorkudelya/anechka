@@ -144,8 +144,9 @@ namespace anechka
         float maxLF = !config["max_load_factor"].is_null() ? config["max_load_factor"].get<float>() : 0.75;
         size_t size = !config["est_unique_tokens"].is_null() ? config["est_unique_tokens"].get<size_t>() : 3e5;
         size_t threads = !config["se_threads"].is_null() ? config["se_threads"].get<size_t>() : hardwareThreads;
+        float cacheSize = !config["cache_size"].is_null() ? config["cache_size"].get<float>() : 0.25;
 
-        const core::SearchEngineParams engineParams{size, threads, maxLF, toLowercase};
+        const core::SearchEngineParams engineParams{size, threads, maxLF, toLowercase, cacheSize};
         m_searchEngine = std::make_unique<core::SearchEngine>(engineParams);
 
         if (restoring)
@@ -272,10 +273,18 @@ namespace anechka
 
         const std::string& token = tokenRequestPtr->getToken();
 
-        bool found = false;
-        auto tokenPtr = m_searchEngine->search(token, found);
+        bool foundCache = false;
+        auto entry = m_searchEngine->searchCache(core::CacheType::ContextSearch, token, foundCache);
+        if (foundCache)
+        {
+            responsePtr->getResult() = entry;
+            responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
+            return responsePtr;
+        }
 
-        if (!found)
+        bool foundPrimary = false;
+        auto tokenPtr = m_searchEngine->search(token, foundPrimary);
+        if (!foundPrimary)
         {
             return responsePtr;
         }
@@ -318,6 +327,7 @@ namespace anechka
             index.push_back(final.dump(2));
         }
         responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
+        m_searchEngine->cacheTokenContext(token, index);
 
         return responsePtr;
     }

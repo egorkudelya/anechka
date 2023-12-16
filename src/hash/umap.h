@@ -3,6 +3,7 @@
 #include "common.h"
 #include <functional>
 #include <list>
+#include <random>
 #include <memory>
 #include <shared_mutex>
 
@@ -119,6 +120,18 @@ namespace core
                 isErased = true;
             }
 
+            Key eraseRandom(const Key& defaultKey)
+            {
+                std::unique_lock<std::shared_mutex> lock(m_mtx);
+                if (m_data.empty())
+                {
+                    return defaultKey;
+                }
+                BucketIterator target = m_data.begin();
+                m_data.erase(target);
+                return target->first;
+            }
+
             Json serialize() const
             {
                 Json bucket;
@@ -148,6 +161,22 @@ namespace core
             return const_cast<BucketType&>(const_cast<const SUMap*>(this)->getBucket(key));
         }
 
+        BucketType& getBucket(size_t i, bool tag)
+        {
+            return *m_buckets[i];
+        }
+
+        auto initBuckets(size_t reserveSize) const
+        {
+            std::vector<std::unique_ptr<BucketType>> buckets;
+            buckets.reserve(reserveSize);
+            for (size_t i = 0; i < reserveSize; i++)
+            {
+                buckets.emplace_back(std::make_unique<BucketType>());
+            }
+            return buckets;
+        }
+
     public:
         using KeyType = Key;
         using ValueType = Value;
@@ -156,12 +185,8 @@ namespace core
             : m_hasher(Hash{})
             , m_size(0)
             , m_bucketCount(reserveSize)
+            , m_buckets(std::move(initBuckets(reserveSize)))
         {
-            m_buckets.reserve(reserveSize);
-            for (size_t i = 0; i < reserveSize; i++)
-            {
-                m_buckets.emplace_back(std::make_unique<BucketType>());
-            }
         }
 
         bool exists(const Key& key) const
@@ -216,6 +241,20 @@ namespace core
             }
         }
 
+        Key eraseRandom(const Key& defaultKey = Key())
+        {
+            /**
+            * since m_buckets is const, we have a guarantee that the number of buckets
+            * will remain constant during the lifetime of SUmap.
+            */
+
+            std::random_device dev;
+            std::mt19937 rng(dev());
+            std::uniform_int_distribution<std::mt19937::result_type> dist(0, m_buckets.size() - 1);
+
+            return getBucket(dist(rng), true).eraseRandom(defaultKey);
+        }
+
         size_t size() const noexcept
         {
             /**
@@ -258,7 +297,7 @@ namespace core
         }
 
     private:
-        std::vector<std::unique_ptr<BucketType>> m_buckets;
+        const std::vector<std::unique_ptr<BucketType>> m_buckets;
         std::atomic<size_t> m_size;
         const size_t m_bucketCount;
         const Hash m_hasher;

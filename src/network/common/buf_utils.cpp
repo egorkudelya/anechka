@@ -60,6 +60,7 @@ namespace net
         size_t res = 0;
         auto parts = detail::split(serialized, "--", true);
         release_assert(!parts.empty(), "Tried to deserialize a corrupted packet");
+
         const std::string& sizeStr = parts[0];
         std::from_chars(sizeStr.data(), sizeStr.data() + sizeStr.size(), res);
 
