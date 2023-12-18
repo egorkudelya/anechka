@@ -11,6 +11,8 @@ namespace anechka
     public:
         explicit Anechka(const std::string& configPath);
         ~Anechka();
+        Anechka(const Anechka& other) = delete;
+        Anechka& operator=(const Anechka& other) = delete;
         net::ResponsePtr RequestTxtFileIndexing(const net::RequestPtr& requestPtr) override;
         net::ResponsePtr RequestRecursiveDirIndexing(const net::RequestPtr& requestPtr) override;
         net::ResponsePtr RequestTokenSearch(const net::RequestPtr& requestPtr) override;
@@ -21,8 +23,8 @@ namespace anechka
         void config(const std::string& configPath);
 
     private:
-        std::string m_dumpPath{"../dump/dump.bson"};
         bool m_persistent{false};
+        std::string m_dumpPath{"../dump/dump.bson"};
         core::SearchEnginePtr m_searchEngine;
     };
 }
