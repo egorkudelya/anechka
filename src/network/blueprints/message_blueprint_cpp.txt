@@ -24,7 +24,7 @@ namespace net::{MESSAGE_NAME}
     {{
        const std::string& src = toJson().dump();
        std::string result;
-       for (size_t i = 0; i < src.size(); ++i)
+       for (size_t i = 0; i < src.size(); i++)
        {{
            if (src[i] == '\\' && i + 1 < src.size())
            {{
@@ -42,7 +42,7 @@ namespace net::{MESSAGE_NAME}
                    }}
                    default: result += src[i + 1];
                }}
-               ++i;
+               i++;
            }}
            else if (src[i] == '{{' && (i + 2 < src.size() && src[i + 2] != 'n'))
            {{
