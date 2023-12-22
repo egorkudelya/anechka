@@ -47,13 +47,14 @@ target_link_libraries(engine PRIVATE mmap thread_pool timer)
 
 add_library(network_common STATIC
         src/network/abstract/message.h
+        src/network/abstract/message.cpp
         src/network/abstract/cstub.h
         src/network/abstract/cstub.cpp
         src/network/abstract/sstub.h
         src/network/abstract/sstub.cpp
 
-        src/network/common/buf_utils.h
-        src/network/common/buf_utils.cpp
+        src/network/common/proto_utils.h
+        src/network/common/proto_utils.cpp
 
         src/network/gen/gen_messages.h
         src/network/gen/gen_messages.cpp

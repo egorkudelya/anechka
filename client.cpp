@@ -5,10 +5,19 @@ int main()
 {
     auto clientStubPtr = std::make_unique<net::ClientStub>();
 
-    utils::print(clientStubPtr->RequestRecursiveDirIndexing("../vault/"));
-    utils::print(clientStubPtr->RequestTokenDeletion("orange"));
-    utils::print(clientStubPtr->RequestTokenSearch("apple"));
-    utils::print(clientStubPtr->RequestTokenSearchWithContext("America"));
+    auto r1 = clientStubPtr->RequestRecursiveDirIndexing("../vault/test/neg");
+    auto r2 = clientStubPtr->RequestTokenSearchWithContext("America");
+    auto r3 = clientStubPtr->RequestTokenDeletion("orange");
+    auto r4 = clientStubPtr->RequestTokenSearch("apple");
+    auto r5 = clientStubPtr->RequestTokenSearchWithContext("hello");
+    auto r6 = clientStubPtr->RequestTokenSearchWithContext("conscientious");
+
+    r1->print();
+    r2->print();
+    r3->print();
+    r4->print();
+    r5->print();
+    r6->print();
 
     return 0;
 }

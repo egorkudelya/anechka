@@ -12,60 +12,23 @@ namespace anechka
     {
         std::string res;
         res.reserve(src.size());
-        for (auto ch: src)
+        for (char ch: src)
         {
             switch (ch)
             {
-                case '\'':
-                    res += "\\'";
-                    break;
-
-                case '\"':
-                    res += "\\\"";
-                    break;
-
-                case '\?':
-                    res += "\\?";
-                    break;
-
-                case '\\':
-                    res += "\\\\";
-                    break;
-
-                case '\a':
-                    res += "\\a";
-                    break;
-
-                case '\b':
-                    res += "\\b";
-                    break;
-
-                case '\f':
-                    res += "\\f";
-                    break;
-
-                case '\n':
-                    res += "\\n";
-                    break;
-
-                case '\r':
-                    res += "\\r";
-                    break;
-
-                case '\0':
-                    res += "\\0";
-                    break;
-
-                case '\t':
-                    res += "\\t";
-                    break;
-
-                case '\v':
-                    res += "\\v";
-                    break;
-
-                default:
-                    res += ch;
+                case '\'': res += "\\'"; break;
+                case '\"': res += "\\\""; break;
+                case '\?': res += "\\?"; break;
+                case '\\': res += "\\\\"; break;
+                case '\a': res += "\\a"; break;
+                case '\b': res += "\\b"; break;
+                case '\f': res += "\\f"; break;
+                case '\n': res += "\\n"; break;
+                case '\r': res += "\\r"; break;
+                case '\0': res += "\\0"; break;
+                case '\t': res += "\\t"; break;
+                case '\v': res += "\\v"; break;
+                default: res += ch;
             }
         }
         return res;
@@ -321,7 +284,7 @@ namespace anechka
 
             Json final;
             final["path"] = std::move(key);
-            final["contexts"] = std::move(jcontexts);
+            final["contexts"] = std::move(jcontexts.dump(2));
 
             index.push_back(final.dump(2));
         }

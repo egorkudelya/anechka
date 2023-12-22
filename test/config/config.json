@@ -1,11 +1,11 @@
 {
-  "est_unique_tokens": 100,
+  "est_unique_tokens": 220000,
   "se_threads": 8,
   "serv_threads": 8,
   "max_load_factor": 0.75,
   "cache_size": 0.25,
   "to_lowercase": false,
   "is_persistent": false,
-  "is_restoring_on_start": true,
+  "is_restoring_on_start": false,
   "port": 4444
 }

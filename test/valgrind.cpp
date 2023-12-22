@@ -10,7 +10,7 @@ TEST(Anechka, Valgrind)
     auto anechkaPtr = std::make_unique<anechka::Anechka>("../test/config/config.json");
     anechkaPtr->run();
 
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     auto clientStubPtr = std::make_unique<net::ClientStub>();
 
@@ -37,20 +37,24 @@ TEST(Anechka, Valgrind)
 
             for (size_t i = 0; i < 100; i++)
             {
-                auto r1 = std::get<0>(clientStubPtr->RequestTokenSearch(out[i % out.size()]));
-                auto r2 = std::get<1>(clientStubPtr->RequestTokenSearchWithContext(out[i % out.size()]));
-                auto r3 = std::get<0>(clientStubPtr->RequestTxtFileIndexing(source));
-                if (!r1.empty() && !r2.empty() && r3)
+                auto r1 = clientStubPtr->RequestTokenSearch(out[i % out.size()]);
+                auto r2 = clientStubPtr->RequestTokenSearchWithContext(out[i % out.size()]);
+                auto r3 = clientStubPtr->RequestTxtFileIndexing(source);
+                if (r1->getStatus() == net::ProtocolStatus::OK &&
+                    r2->getStatus() == net::ProtocolStatus::OK &&
+                    r3->getStatus() == net::ProtocolStatus::OK)
                 {
                     responseCount++;
                 }
+                r1->print();
+                r2->print();
+                r3->print();
             }
         });
     }
 
-    auto[ok, stat] = clientStubPtr->RequestTokenDeletion("acquire");
-    ASSERT_TRUE(ok);
-
+    auto res = clientStubPtr->RequestTokenDeletion("acquire");
+    ASSERT_TRUE(res->getOk());
 
     for (auto&& thread: clientThreads)
     {

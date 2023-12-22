@@ -1,6 +1,5 @@
 #include "sstub.h"
 
-
 namespace net::stub
 {
     AbstractServerStub::AbstractServerStub()
@@ -91,7 +90,7 @@ namespace net::stub
             SerializedPacket packet;
             if (m_queue->pop(packet) && !packet.frame.empty())
             {
-                dispatchResponse(std::move(route(packet)));
+                dispatchResponse(route(packet));
             }
         }
     }
@@ -110,52 +109,52 @@ namespace net::stub
             * read the first n bytes of the message, which contain the first
             * part of the buffer and likely some part of the boundary
             */
-            std::string header(detail::hsize, 0);
-            if (read(cfd, header.data(), header.size()) < 0)
+            auto optHeader = detail::read(cfd, detail::PrefixSize);
+            if (!optHeader.has_value())
             {
-                release_assert(false, "Failed to read buffer");
+                m_queue->push(SerializedPacket{cfd, std::string{0, detail::PrefixSize}});
+                continue;
             }
 
-            size_t bufferSize = deserializeSize(header);
-            size_t remainingSize = bufferSize - header.size();
+            const std::string& header = optHeader.value();
 
-            std::string buffer;
-            buffer.reserve(remainingSize);
-
-            char chunk[detail::csize] = {0};
-            while (buffer.size() < remainingSize - 1)
+            auto optBufSize = deserializeSize(header);
+            if (!optBufSize.has_value() || optBufSize.value() < header.size())
             {
-                size_t toRead = std::min(detail::csize, remainingSize - buffer.size());
-                ssize_t r = read(cfd, chunk, toRead);
-                if (r < 0)
-                {
-                    release_assert(false, "Failed to read buffer");
-                }
-
-                buffer.append(chunk, r);
-                memset(chunk, 0, detail::csize);
+                m_queue->push(SerializedPacket{cfd, std::string{0, detail::PrefixSize}});
+                continue;
             }
 
-            m_queue->push(SerializedPacket{cfd, std::move(header + buffer)});
+            size_t remainingSize = optBufSize.value() - header.size();
+
+            auto optBuffer = detail::read(cfd, remainingSize);
+            if (!optBuffer.has_value())
+            {
+                m_queue->push(SerializedPacket{cfd, std::string{0, detail::PrefixSize}});
+                continue;
+            }
+
+            m_queue->push(SerializedPacket{cfd, std::move(header + optBuffer.value())});
         }
     }
 
     void AbstractServerStub::dispatchResponse(Packet<ResponsePtr>&& serverPacket)
     {
-        release_assert(serverPacket.fd.has_value(), "cfd must be set in order to dispatch response");
+        if (!serverPacket.fd.has_value())
+        {
+            return;
+        }
 
         int cfd = serverPacket.fd.value();
-
-        std::string buffer = serialize(serverPacket.handler, serverPacket.body->toJson().dump());
-        if (write(cfd, buffer.data(), buffer.size()) < 0)
+        std::string buffer = serialize<ResponsePtr>(serverPacket.handler, serverPacket.body);
+        if (detail::write(cfd, buffer) < 0)
         {
             close(cfd);
-            release_assert(false, "Failed to write buffer to socket");
+            return;
         }
 
         // finished dealing with the request, closing client socket
         close(cfd);
     }
-
 
 }// namespace stub

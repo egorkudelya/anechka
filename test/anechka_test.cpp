@@ -35,9 +35,10 @@ TEST(Anechka, Async)
 
             for (size_t i = 0; i < 1000; i++)
             {
-                auto r1 = std::get<0>(clientStubPtr->RequestTokenSearch(out[i % out.size()]));
-                auto r2 = std::get<1>(clientStubPtr->RequestTokenSearchWithContext(out[i % out.size()]));
-                if (!r1.empty() && !r2.empty())
+                auto r1 = clientStubPtr->RequestTokenSearch(out[i % out.size()]);
+                auto r2 = clientStubPtr->RequestTokenSearchWithContext(out[i % out.size()]);
+                if (r1->getStatus() == net::ProtocolStatus::OK &&
+                    r2->getStatus() == net::ProtocolStatus::OK)
                 {
                     responseCount++;
                 }
@@ -60,7 +61,7 @@ TEST(Anechka, Async)
 TEST(Anechka, LoadTest)
 {
     /**
-     * The test assumes that there is a lot of documents containing the word "America"
+     * The test assumes that there is a lot of documents containing the word "America" in directory vault/test
      */
     const std::filesystem::path path = "../vault/test";
     ASSERT_TRUE(std::filesystem::exists(path));
@@ -68,7 +69,7 @@ TEST(Anechka, LoadTest)
     auto anechkaPtr = std::make_unique<anechka::Anechka>("../test/config/config.json");
     anechkaPtr->run();
 
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     auto clientStubPtr = std::make_unique<net::ClientStub>();
     clientStubPtr->RequestRecursiveDirIndexing(path);
@@ -81,13 +82,13 @@ TEST(Anechka, LoadTest)
              auto clientStubPtr = std::make_unique<net::ClientStub>();
              for (size_t i = 0; i < 1000; i++)
              {
-                 auto&&[vec, status] = clientStubPtr->RequestTokenSearchWithContext("America");
+                 auto res = clientStubPtr->RequestTokenSearchWithContext("America");
                  if (resSize == -1)
                  {
                      // first response
-                     resSize = vec.size();
+                     resSize = res->getResult().size();
                  }
-                 ASSERT_TRUE(vec.size() == resSize && resSize > 0);
+                 ASSERT_TRUE(res->getResult().size() == resSize && resSize > 0);
              }
          });
     }

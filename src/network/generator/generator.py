@@ -169,7 +169,7 @@ class Generator:
                 return True
             if os.stat(sourceGenFile).st_size == 0:
                 source.write(
-                    "\n#include \"gen_server_stub.h\"\n#include \"gen_messages.h\"\n#include \"../common/buf_utils.h\"\n\n")
+                    "\n#include \"gen_server_stub.h\"\n#include \"gen_messages.h\"\n#include \"../common/proto_utils.h\"\n\n")
             source.write(handlerBlueprint.format(**filler))
         return True
 
@@ -200,7 +200,7 @@ class Generator:
         elif "array" in protoType:
             return self._castArrayTypeToCpp(protoType)
         else:
-            raise ValueError("Invalid data type")
+            raise ValueError(f"Invalid data type: {protoType}")
 
     def _constCoreMemberSection(self, messageSynopsis):
         core = ""

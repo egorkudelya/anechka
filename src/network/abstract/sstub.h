@@ -1,16 +1,11 @@
 #pragma once
 
-#include "../common/buf_utils.h"
+#include "../common/proto_utils.h"
 #include "message.h"
 #include "safe_queue.h"
 #include "xxh64_hasher.h"
-#include <arpa/inet.h>
 #include <memory>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <thread>
-#include <unistd.h>
 #include <vector>
 
 namespace net::stub

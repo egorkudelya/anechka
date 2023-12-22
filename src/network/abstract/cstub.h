@@ -1,32 +1,24 @@
 #pragma once
 
 #include "message.h"
-#include "../common/buf_utils.h"
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <string>
-
+#include "../common/proto_utils.h"
 
 namespace net::stub
 {
     class AbstractClientStub
     {
     public:
-        explicit AbstractClientStub(int port=4444);
+        explicit AbstractClientStub(int port = 4444);
         virtual ~AbstractClientStub() = default;
 
     protected:
-        template <typename RResponsePtr>
-        bool execute(const std::string& handlerName, const RequestPtr& requestPtr, RResponsePtr& responsePtr)
+        template <typename T>
+        bool execute(const std::string& handlerName, const RequestPtr& requestPtr, T& responsePtr)
         {
             release_assert(servConnect(), "Client failed to connect to server");
 
-            std::string serializedRequest = requestPtr->toJson().dump();
-            std::string requestBuffer = serialize(handlerName, serializedRequest);
-            if (write(m_sfd, requestBuffer.c_str(), requestBuffer.size()) < 0)
+            std::string requestBuffer = serialize<RequestPtr>(handlerName, requestPtr);
+            if (detail::write(m_sfd, requestBuffer) < 0)
             {
                 closeConnection();
                 return false;
@@ -35,36 +27,30 @@ namespace net::stub
             * read the first n bytes of the message, which contain the first
             * part of the buffer and likely some part of the boundary
             */
-            std::string header(detail::hsize, 0);
-            if (read(m_sfd, header.data(), header.size()) < 0)
+            auto optHeader = detail::read(m_sfd, detail::PrefixSize);
+            if (!optHeader.has_value())
             {
                 closeConnection();
                 return false;
             }
-            utils::removeLeading(header, '\0');
 
-            size_t bufferSize = deserializeSize(header);
-            size_t remainingSize = bufferSize - header.size();
-
-            std::string buffer;
-            buffer.reserve(remainingSize);
-
-            char chunk[detail::csize] = {0};
-            while (buffer.size() < remainingSize - 1)
+            const std::string& header = optHeader.value();
+            auto optBufSize = deserializeSize(header);
+            if (!optBufSize.has_value() || optBufSize.value() < header.size())
             {
-                size_t toRead = std::min(detail::csize, remainingSize - buffer.size());
-                ssize_t r = read(m_sfd, chunk, toRead);
-                if (r < 0)
-                {
-                    closeConnection();
-                    return false;
-                }
-
-                buffer.append(chunk, r);
-                memset(chunk, 0, detail::csize);
+                closeConnection();
+                return false;
             }
 
-            auto packet = deserialize<RResponsePtr>(header + buffer);
+            size_t remainingSize = optBufSize.value() - header.size();
+            auto optBuffer = detail::read(m_sfd, remainingSize);
+            if (!optBuffer.has_value())
+            {
+                closeConnection();
+                return false;
+            }
+
+            const Packet<T> packet = deserialize<T>(header +  optBuffer.value());
             responsePtr = packet.body;
 
             closeConnection();
