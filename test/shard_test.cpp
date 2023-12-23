@@ -23,7 +23,7 @@ TEST(ShardTest, Basic)
     EXPECT_TRUE(exists);
     EXPECT_EQ(record->size(), 4);
 
-    EXPECT_EQ(shard->size(), 3);
+    EXPECT_EQ(shard->tokenCount(), 3);
 
     shard->erase("orange");
 
@@ -33,5 +33,5 @@ TEST(ShardTest, Basic)
     EXPECT_FALSE(orangeExists);
     EXPECT_FALSE(shard->exists("orange"));
     EXPECT_EQ(nullRecord->serialize(), Json(nullptr));
-    EXPECT_EQ(shard->size(), 2);
+    EXPECT_EQ(shard->tokenCount(), 2);
 }

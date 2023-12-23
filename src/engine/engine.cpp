@@ -138,7 +138,12 @@ namespace core
 
     size_t SearchEngine::tokenCount() const
     {
-        return m_storage->size();
+        return m_storage->tokenCount();
+    }
+
+    size_t SearchEngine::docCount() const
+    {
+        return m_storage->docCount();
     }
 
     Json SearchEngine::serialize() const

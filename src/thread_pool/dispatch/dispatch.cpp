@@ -40,6 +40,10 @@ namespace core
     QueuePtr QueueDispatch::extractLeastBusy()
     {
         std::unique_lock<std::shared_mutex> lock(m_setMtx);
+        m_cv.wait(lock, [this] {
+            return !m_set.empty();
+        });
+
         auto nodeHandle = m_set.extract(m_set.begin());
         return nodeHandle.value();
     }
@@ -48,6 +52,7 @@ namespace core
     {
         std::unique_lock<std::shared_mutex> lock(m_setMtx);
         m_set.insert(queueBlockPtr);
+        m_cv.notify_one();
     }
 
     void QueueDispatch::clear()

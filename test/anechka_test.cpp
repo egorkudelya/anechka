@@ -75,7 +75,7 @@ TEST(Anechka, LoadTest)
     clientStubPtr->RequestRecursiveDirIndexing(path);
 
     std::vector<std::thread> clientThreads;
-    std::atomic<ssize_t> resSize = -1;
+    std::atomic<int64_t> resSize = -1;
     for (size_t i = 0; i < 15; i++)
     {
          clientThreads.emplace_back([&resSize] {
@@ -88,7 +88,87 @@ TEST(Anechka, LoadTest)
                      // first response
                      resSize = res->getResult().size();
                  }
-                 ASSERT_TRUE(res->getResult().size() == resSize && resSize > 0);
+                 EXPECT_EQ(res->getResult().size(), resSize);
+                 ASSERT_TRUE(resSize > 0);
+             }
+         });
+    }
+
+    for (auto&& thread: clientThreads)
+    {
+         if (thread.joinable())
+         {
+             thread.join();
+         }
+    }
+
+    anechkaPtr->shutDown();
+}
+
+TEST(Anechka, Comprehensive)
+{
+    const std::filesystem::path path = "../vault/test";
+    ASSERT_TRUE(std::filesystem::exists(path));
+
+    auto anechkaPtr = std::make_unique<anechka::Anechka>("../test/config/config.json");
+    anechkaPtr->run();
+
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    auto clientStubPtr = std::make_unique<net::ClientStub>();
+    clientStubPtr->RequestRecursiveDirIndexing(path);
+
+    std::vector<std::string> corpus {
+        "The", "more", "I", "read", "acquire", "certain", "that", "know", "nothing",
+        "apple", "America", "California", "sad", "good", "happy", "shiny", "sun", "moon",
+        "earth"
+    };
+
+    std::vector<std::thread> clientThreads;
+    for (size_t i = 0; i < 10; i++)
+    {
+         clientThreads.emplace_back([] {
+             auto clientStubPtr = std::make_unique<net::ClientStub>();
+             for (size_t i = 0; i < 5; i++)
+             {
+                 clientStubPtr->RequestRecursiveDirIndexing("../vault/test");
+             }
+         });
+    }
+
+    for (size_t i = 0; i < 5; i++)
+    {
+         clientThreads.emplace_back([] {
+             auto clientStubPtr = std::make_unique<net::ClientStub>();
+             for (size_t i = 0; i < 100; i++)
+             {
+                 auto r = clientStubPtr->RequestTokenSearchWithContext("sun");
+//                 ASSERT_TRUE(!r->getResult().empty());
+                 ASSERT_TRUE(r->getStatus() == net::ProtocolStatus::OK);
+             }
+         });
+    }
+
+    for (size_t i = 0; i < 10; i++)
+    {
+         clientThreads.emplace_back([&corpus] {
+             auto clientStubPtr = std::make_unique<net::ClientStub>();
+             for (size_t i = 0; i < 100; i++)
+             {
+                 std::vector<std::string> sample;
+                 std::sample(
+                     corpus.begin(),
+                     corpus.end(),
+                     std::back_inserter(sample),
+                     corpus.size()/2,
+                     std::mt19937{std::random_device{}()}
+                 );
+
+                 for (const std::string& token: sample)
+                 {
+                     auto r = clientStubPtr->RequestTokenDeletion(token);
+                     ASSERT_TRUE(r->getStatus() == net::ProtocolStatus::OK);
+                 }
              }
          });
     }

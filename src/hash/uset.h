@@ -4,6 +4,7 @@
 #include <memory>
 #include <functional>
 #include <unordered_set>
+#include <list>
 #include <shared_mutex>
 #include <mutex>
 #include <atomic>
@@ -28,7 +29,7 @@ namespace core
             template<typename URValue>
             void addIfNotPresent(URValue&& value, bool& isPresentAlready)
             {
-                static_assert(std::is_same_v<Value, URValue> == true);
+                static_assert(std::is_same_v<Value, std::decay_t<URValue>>);
 
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
                 BucketIterator record = findUnsafe(value);
@@ -39,6 +40,19 @@ namespace core
                     return;
                 }
                 isPresentAlready = true;
+            }
+
+            void erase(const Value& value, bool& isErased)
+            {
+                std::unique_lock<std::shared_mutex> lock(m_mtx);
+                BucketIterator record = findUnsafe(value);
+                if (record == m_data.end())
+                {
+                    isErased = false;
+                    return;
+                }
+                m_data.erase(record);
+                isErased = true;
             }
 
             bool contains(const Value& value) const
@@ -52,13 +66,20 @@ namespace core
                 return true;
             }
 
+            std::list<Value> values() const
+            {
+                std::list<Value> values;
+                std::shared_lock<std::shared_mutex> lock(m_mtx);
+                return std::list<Value>(m_data.begin(), m_data.end());
+            }
+
             Json serialize() const
             {
                 Json bucket;
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
-                for (auto&& data: m_data)
+                for (const auto& data: m_data)
                 {
-                    bucket.push_back(utils::serializeType(std::move(data)));
+                    bucket.push_back(utils::serializeType(data));
                 }
                 return bucket;
             }
@@ -74,6 +95,21 @@ namespace core
             return *m_buckets[bucketIndex];
         }
 
+        auto initBuckets(size_t reserveSize) const
+        {
+            if (reserveSize == 0)
+            {
+                reserveSize = 1;
+            }
+            std::vector<std::unique_ptr<BucketType>> buckets;
+            buckets.reserve(reserveSize);
+            for (size_t i = 0; i < reserveSize; i++)
+            {
+                buckets.emplace_back(std::make_unique<BucketType>());
+            }
+            return buckets;
+        }
+
     public:
         using ValueType = Value;
         using HashType = Hash;
@@ -81,22 +117,14 @@ namespace core
         explicit USet(size_t reserveSize = 9)
             : m_hasher(Hash{})
             , m_size(0)
+            , m_buckets(initBuckets(reserveSize))
         {
-            if (reserveSize == 0)
-            {
-                reserveSize = 1;
-            }
-            m_buckets.reserve(reserveSize);
-            for (size_t i = 0; i < reserveSize; i++)
-            {
-                m_buckets.emplace_back(std::make_unique<BucketType>());
-            }
         }
 
         template<typename URValue>
         void addIfNotPresent(URValue&& value)
         {
-            static_assert(std::is_same_v<Value, URValue>);
+            static_assert(std::is_same_v<Value, std::decay_t<URValue>>);
 
             bool isPresentAlready;
             getBucket(value).addIfNotPresent(std::forward<URValue>(value), isPresentAlready);
@@ -106,9 +134,30 @@ namespace core
             }
         }
 
+        bool erase(const Value& value)
+        {
+            bool isErased;
+            getBucket(value).erase(value, isErased);
+            if (isErased)
+            {
+                m_size--;
+            }
+            return isErased;
+        }
+
         bool contains(const Value& value) const
         {
             return getBucket(value).contains(value);
+        }
+
+        std::list<Value> values() const
+        {
+            std::list<Value> values;
+            for (const auto& bucket: m_buckets)
+            {
+                values.splice(values.end(), bucket->values());
+            }
+            return values;
         }
 
         Json serialize() const
@@ -138,7 +187,7 @@ namespace core
         }
 
     private:
-        std::vector<std::unique_ptr<BucketType>> m_buckets;
+        const std::vector<std::unique_ptr<BucketType>> m_buckets;
         std::atomic<size_t> m_size;
         Hash m_hasher;
     };

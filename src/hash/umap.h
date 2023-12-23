@@ -56,6 +56,23 @@ namespace core
                 return record->second;
             }
 
+            template<typename Callback>
+            void mutate(const Key& key, bool& isNew, Callback&& callback)
+            {
+                std::unique_lock<std::shared_mutex> lock(m_mtx);
+                const BucketIterator record = findUnsafe(key);
+                if (record == m_data.end())
+                {
+                    m_data.push_back(std::make_pair(key, callback(record, false)));
+                    isNew = true;
+                }
+                else
+                {
+                    callback(record, true);
+                    isNew = false;
+                }
+            }
+
             void insert(const Key& key, const Value& value, bool& isNew)
             {
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
@@ -68,25 +85,6 @@ namespace core
                 else
                 {
                     record->second = value;
-                    isNew = false;
-                }
-            }
-
-            template<typename PrimaryCallBack, typename SecondaryCallBack>
-            void _insert(const Key& key, bool& isNew, PrimaryCallBack&& primary, SecondaryCallBack&& secondary)
-            {
-                std::unique_lock<std::shared_mutex> lock(m_mtx);
-                const BucketIterator record = findUnsafe(key);
-                if (record == m_data.end())
-                {
-                    m_data.push_back(std::make_pair(key, primary()));
-                    isNew = true;
-                }
-                else
-                {
-                    auto value = *record;
-                    lock.unlock();
-                    secondary(std::move(value));
                     isNew = false;
                 }
             }
@@ -203,22 +201,26 @@ namespace core
             return getBucket(key).get(key, defaultValue);
         }
 
-        void insert(const Key& key, const Value& value)
+        template<typename Callback>
+        void mutate(const Key& key, Callback&& callback)
         {
+            /**
+            * Allows client to execute custom logic on a locked iterator. The client can
+            * choose to either modify an existing value if the second callback parameter
+            * is true or return a new one if the said parameter is false.
+            */
             bool isNew;
-            getBucket(key).insert(key, value, isNew);
+            getBucket(key).mutate(key, isNew, std::forward<Callback>(callback));
             if (isNew)
             {
                 m_size++;
             }
         }
 
-        template<typename PrimaryCallBack, typename SecondaryCallBack>
-        void _insert(const Key& key, PrimaryCallBack&& primary, SecondaryCallBack&& secondary)
+        void insert(const Key& key, const Value& value)
         {
             bool isNew;
-            getBucket(key)
-                ._insert(key, isNew, std::forward<PrimaryCallBack>(primary), std::forward<SecondaryCallBack>(secondary));
+            getBucket(key).insert(key, value, isNew);
             if (isNew)
             {
                 m_size++;
@@ -235,7 +237,7 @@ namespace core
             }
         }
 
-        void erase(const Key& key)
+        bool erase(const Key& key)
         {
             bool isErased;
             getBucket(key).erase(key, isErased);
@@ -243,6 +245,7 @@ namespace core
             {
                 m_size--;
             }
+            return isErased;
         }
 
         Key eraseRandom(const Key& defaultKey = Key())

@@ -3,6 +3,7 @@
 #include "common.h"
 #include "umap.h"
 #include "xxh64_hasher.h"
+#include "doc_trace.h"
 #include <memory>
 
 namespace std
@@ -22,7 +23,7 @@ namespace std
 
 namespace core
 {
-    using TokenRecord = core::USet<std::pair<std::string, size_t>>;
+    using TokenRecord = core::USet<std::pair<std::string_view, size_t>>;
     using TokenRecordPtr = std::shared_ptr<TokenRecord>;
     using ConstTokenRecordPtr = std::shared_ptr<const TokenRecord>;
 
@@ -36,7 +37,8 @@ namespace core
         bool exists(const std::string& token) const;
         float loadFactor() const;
         bool isExpandable() const;
-        size_t size() const;
+        size_t tokenCount() const;
+        size_t docCount() const;
         Json serialize() const;
 
     private:
@@ -44,6 +46,7 @@ namespace core
         * word -> [document_path, position]
         */
         SUMap<std::string, TokenRecordPtr, Xxh64Hasher> m_record;
+        DocTrace m_docTrace;
         const float m_maxLoadFactor;
     };
 

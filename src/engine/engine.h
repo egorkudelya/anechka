@@ -5,7 +5,6 @@
 
 namespace core
 {
-
     namespace CacheType
     {
         enum Type
@@ -48,6 +47,7 @@ namespace core
         CacheEntry searchCache(CacheType::Type cacheType, const std::string& token, bool& found) const;
         void invalidateCache(const std::string& token);
         size_t tokenCount() const;
+        size_t docCount() const;
         Json serialize() const;
         float loadFactor() const;
         bool isExpandable() const;

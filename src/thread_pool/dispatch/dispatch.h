@@ -31,6 +31,7 @@ namespace core
         QueuePtr extractLeastBusy();
 
     private:
+        std::condition_variable_any m_cv;
         mutable std::shared_mutex m_setMtx;
         mutable std::shared_mutex m_mapMtx;
         Set m_set;

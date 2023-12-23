@@ -5,22 +5,25 @@ namespace core
     Shard::Shard(float maxLoadFactor, size_t expectedTokenCount)
         : m_maxLoadFactor(maxLoadFactor)
         , m_record((float)expectedTokenCount / maxLoadFactor)
+        , m_docTrace(expectedTokenCount/3)
     {
     }
 
     void Shard::insert(std::string&& token, const std::string& doc, size_t pos)
     {
-        auto addNewRecord = [doc = std::string{doc}, pos = pos] {
+        std::string_view ref = m_docTrace.addOrIncrement(doc);
+        auto callback = [ref, pos = pos](const auto& it, bool iterValid) {
+            if (iterValid)
+            {
+                it->second->addIfNotPresent(std::make_pair(ref, pos));
+                return TokenRecordPtr{};
+            }
             auto newRecord = std::make_shared<TokenRecord>();
-            newRecord->addIfNotPresent(std::make_pair(std::move(doc), pos));
+            newRecord->addIfNotPresent(std::make_pair(ref, pos));
             return newRecord;
         };
 
-        auto appendToExisting = [doc = std::string{doc}, pos = pos](auto&& record) {
-            record.second->addIfNotPresent(std::make_pair(std::move(doc), pos));
-        };
-
-        m_record._insert(token, std::move(addNewRecord), std::move(appendToExisting));
+        m_record.mutate(token, std::move(callback));
     }
 
     ConstTokenRecordPtr Shard::search(const std::string& token, bool& exists) const
@@ -40,7 +43,20 @@ namespace core
 
     void Shard::erase(const std::string& token)
     {
-        m_record.erase(token);
+        bool exists;
+        auto record = search(token, exists);
+        if (!exists)
+        {
+            return;
+        }
+
+        if (m_record.erase(token))
+        {
+            for (auto&&[path, _]: record->values())
+            {
+                m_docTrace.eraseOrDecrement(std::string{path});
+            }
+        }
     }
 
     bool Shard::exists(const std::string& token) const
@@ -58,9 +74,14 @@ namespace core
         return m_record.loadFactor() < m_maxLoadFactor;
     }
 
-    size_t Shard::size() const
+    size_t Shard::tokenCount() const
     {
         return m_record.size();
+    }
+
+    size_t Shard::docCount() const
+    {
+        return m_docTrace.size();
     }
 
     Json Shard::serialize() const

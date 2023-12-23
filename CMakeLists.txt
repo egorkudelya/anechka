@@ -14,9 +14,11 @@ include_directories(vendor/hash)
 include_directories(src/hash)
 include_directories(src/utility)
 
-add_library(timer STATIC
+add_library(common STATIC
         src/utility/timer.h
         src/utility/timer.cpp
+        src/engine/doc_trace.h
+        src/engine/doc_trace.cpp
 )
 
 add_library(mmap STATIC
@@ -43,7 +45,7 @@ add_library(thread_pool STATIC
         src/thread_pool/primitives/callback.h
 )
 
-target_link_libraries(engine PRIVATE mmap thread_pool timer)
+target_link_libraries(engine PRIVATE mmap thread_pool common)
 
 add_library(network_common STATIC
         src/network/abstract/message.h
@@ -90,6 +92,7 @@ set(TEST_SRC
     test/umap_test.cpp
     test/mmap_test.cpp
     test/shard_test.cpp
+    test/doc_trace.cpp
     test/search_engine_test.cpp
     test/anechka_test.cpp
     test/valgrind.cpp
