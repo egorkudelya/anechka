@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 {
     if (argc != 2)
     {
-        std::cerr << "Error: the program expects the path to config.json" << std::endl;
+        std::cerr << "Error: the engine expects the path to config.json" << std::endl;
         return -1;
     }
 

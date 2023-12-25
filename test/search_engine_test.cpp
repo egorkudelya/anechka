@@ -3,11 +3,11 @@
 
 TEST(SearchEngineTest, Basic)
 {
-    auto engine = std::make_unique<core::SearchEngine>(core::SearchEngineParams{25, 8, 0.75});
+    auto engine = std::make_unique<core::SearchEngine>(core::SearchEngineParams{25, 8, 0.75, true});
 
     engine->indexTxtFile("../test/data/sample.txt");
 
-    EXPECT_EQ(engine->tokenCount(), 12);
+    EXPECT_EQ(engine->tokenCount(), 10);
 
     bool found = false;
     auto res = engine->search("nothing", found);
@@ -28,6 +28,15 @@ TEST(SearchEngineTest, Basic)
     restoredEngine->restore("dump.json", stale);
 
     EXPECT_EQ(engine->tokenCount(), restoredEngine->tokenCount());
+
+    bool originalFound = false;
+    auto originalRes = engine->search("acquire", originalFound);
+    EXPECT_TRUE(originalFound);
+
+    bool restoreFound = false;
+    auto restoreRes = restoredEngine->search("acquire", restoreFound);
+    EXPECT_TRUE(restoreFound);
+    EXPECT_EQ(originalRes->serialize(), restoreRes->serialize());
 
     // I don't compare contents here because tokens may be in a different order in the dumps
     EXPECT_EQ(engine->serialize().dump().size(), restoredEngine->serialize().dump().size());

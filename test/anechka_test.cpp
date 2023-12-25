@@ -12,7 +12,7 @@ TEST(Anechka, Async)
 
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
-    auto clientStubPtr = std::make_unique<net::ClientStub>();
+    auto clientStubPtr = std::make_unique<anechka::ClientStub>();
     clientStubPtr->RequestTxtFileIndexing("../test/data/sample.txt");
 
     std::vector<std::string> tokens{"The", "more", "I", "read", "acquire", "certain", "that", "know", "nothing"};
@@ -22,7 +22,7 @@ TEST(Anechka, Async)
     for (size_t i = 0; i < 15; i++)
     {
          clientThreads.emplace_back([&tokens, &responseCount] {
-            auto clientStubPtr = std::make_unique<net::ClientStub>();
+            auto clientStubPtr = std::make_unique<anechka::ClientStub>();
 
             std::vector<std::string> out;
             std::sample(
@@ -58,7 +58,7 @@ TEST(Anechka, Async)
     EXPECT_EQ(responseCount, 1000 * 15);
 }
 
-TEST(Anechka, LoadTest)
+TEST(Anechka, ContextSearchTest)
 {
     /**
      * The test assumes that there is a lot of documents containing the word "America" in directory vault/test
@@ -71,7 +71,7 @@ TEST(Anechka, LoadTest)
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    auto clientStubPtr = std::make_unique<net::ClientStub>();
+    auto clientStubPtr = std::make_unique<anechka::ClientStub>();
     clientStubPtr->RequestRecursiveDirIndexing(path);
 
     std::vector<std::thread> clientThreads;
@@ -79,16 +79,16 @@ TEST(Anechka, LoadTest)
     for (size_t i = 0; i < 15; i++)
     {
          clientThreads.emplace_back([&resSize] {
-             auto clientStubPtr = std::make_unique<net::ClientStub>();
+             auto clientStubPtr = std::make_unique<anechka::ClientStub>();
              for (size_t i = 0; i < 1000; i++)
              {
                  auto res = clientStubPtr->RequestTokenSearchWithContext("America");
                  if (resSize == -1)
                  {
                      // first response
-                     resSize = res->getResult().size();
+                     resSize = res->getResponses().size();
                  }
-                 EXPECT_EQ(res->getResult().size(), resSize);
+                 EXPECT_EQ(res->getResponses().size(), resSize);
                  ASSERT_TRUE(resSize > 0);
              }
          });
@@ -107,7 +107,7 @@ TEST(Anechka, LoadTest)
 
 TEST(Anechka, Comprehensive)
 {
-    const std::filesystem::path path = "../vault/test";
+    const std::filesystem::path path = "../vault/test/neg";
     ASSERT_TRUE(std::filesystem::exists(path));
 
     auto anechkaPtr = std::make_unique<anechka::Anechka>("../test/config/config.json");
@@ -115,7 +115,7 @@ TEST(Anechka, Comprehensive)
 
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
-    auto clientStubPtr = std::make_unique<net::ClientStub>();
+    auto clientStubPtr = std::make_unique<anechka::ClientStub>();
     clientStubPtr->RequestRecursiveDirIndexing(path);
 
     std::vector<std::string> corpus {
@@ -128,7 +128,7 @@ TEST(Anechka, Comprehensive)
     for (size_t i = 0; i < 10; i++)
     {
          clientThreads.emplace_back([] {
-             auto clientStubPtr = std::make_unique<net::ClientStub>();
+             auto clientStubPtr = std::make_unique<anechka::ClientStub>();
              for (size_t i = 0; i < 5; i++)
              {
                  clientStubPtr->RequestRecursiveDirIndexing("../vault/test");
@@ -139,7 +139,7 @@ TEST(Anechka, Comprehensive)
     for (size_t i = 0; i < 5; i++)
     {
          clientThreads.emplace_back([] {
-             auto clientStubPtr = std::make_unique<net::ClientStub>();
+             auto clientStubPtr = std::make_unique<anechka::ClientStub>();
              for (size_t i = 0; i < 100; i++)
              {
                  auto r = clientStubPtr->RequestTokenSearchWithContext("sun");
@@ -152,8 +152,8 @@ TEST(Anechka, Comprehensive)
     for (size_t i = 0; i < 10; i++)
     {
          clientThreads.emplace_back([&corpus] {
-             auto clientStubPtr = std::make_unique<net::ClientStub>();
-             for (size_t i = 0; i < 100; i++)
+             auto clientStubPtr = std::make_unique<anechka::ClientStub>();
+             for (size_t i = 0; i < 150; i++)
              {
                  std::vector<std::string> sample;
                  std::sample(
@@ -169,6 +169,32 @@ TEST(Anechka, Comprehensive)
                      auto r = clientStubPtr->RequestTokenDeletion(token);
                      ASSERT_TRUE(r->getStatus() == net::ProtocolStatus::OK);
                  }
+             }
+         });
+    }
+
+    for (size_t i = 0; i < 5; i++)
+    {
+         clientThreads.emplace_back([&corpus] {
+             auto clientStubPtr = std::make_unique<anechka::ClientStub>();
+             for (size_t i = 0; i < 30; i++)
+             {
+                 std::vector<std::string> sample;
+                 std::sample(
+                     corpus.begin(),
+                     corpus.end(),
+                     std::back_inserter(sample),
+                     3,
+                     std::mt19937{std::random_device{}()}
+                 );
+
+                 std::string query;
+                 for (const std::string& token: sample)
+                 {
+                     query += token + ' ';
+                 }
+                 auto r = clientStubPtr->RequestQuerySearch(query);
+                 ASSERT_TRUE(r->getStatus() == net::ProtocolStatus::OK);
              }
          });
     }

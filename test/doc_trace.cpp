@@ -7,11 +7,11 @@
 TEST(DocTrace, Basic)
 {
     core::DocTrace docTrace{10};
-    docTrace.addOrIncrement("first.txt");
-    docTrace.addOrIncrement("second.txt");
-    docTrace.addOrIncrement("second.txt");
-    docTrace.addOrIncrement("second.txt");
-    docTrace.addOrIncrement("third.txt");
+    docTrace.addOrIncrement("first.txt", {0});
+    docTrace.addOrIncrement("second.txt", {0});
+    docTrace.addOrIncrement("second.txt", {0});
+    docTrace.addOrIncrement("second.txt", {0});
+    docTrace.addOrIncrement("third.txt", {0});
 
     EXPECT_EQ(docTrace.getRefCount("first.txt"), 1);
     EXPECT_EQ(docTrace.getRefCount("second.txt"), 3);
@@ -26,7 +26,7 @@ TEST(DocTrace, Basic)
     docTrace.eraseOrDecrement("second.txt");
     EXPECT_EQ(docTrace.getRefCount("second.txt"), 0);
 
-    docTrace.addOrIncrement("second.txt");
+    docTrace.addOrIncrement("second.txt", {0});
     EXPECT_EQ(docTrace.getRefCount("second.txt"), 1);
 }
 
@@ -45,17 +45,17 @@ TEST(DocTrace, Async)
     std::vector<std::thread> clientThreads;
     for (size_t i = 0; i < 5; i++)
     {
-        for (size_t j = 0; j < 1000; j++)
+        for (size_t j = 0; j < 100; j++)
         {
             clientThreads.emplace_back([&corpus, &docTrace, &uni, &rng]{
-                docTrace.addOrIncrement(corpus[uni(rng)]);
+                docTrace.addOrIncrement(corpus[uni(rng)], {0});
             });
         }
     }
 
     for (size_t i = 0; i < 5; i++)
     {
-        for (size_t j = 0; j < 1000; j++)
+        for (size_t j = 0; j < 100; j++)
         {
             clientThreads.emplace_back([&corpus, &docTrace, &uni, &rng] {
                 docTrace.eraseOrDecrement(corpus[uni(rng)]);

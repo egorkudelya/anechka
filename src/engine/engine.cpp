@@ -6,29 +6,67 @@
 
 namespace core
 {
-    static const auto delims = {';', ' ', '(', ')', '\"', '.', '?', '!', ',', ':', '-', '\n', '\t', '\'', '/', '>'};
-
     static auto tokenize(const std::unique_ptr<const MMapASCII>& mmap, bool toLowercase=false)
     {
-        std::vector<std::pair<std::string, size_t>> res;
-        for (auto p = mmap->begin();; ++p)
+        return detail::tokenizeRange(mmap->begin(), mmap->end(), toLowercase);
+    }
+
+    static auto tokenize(const std::string& query, bool toLowercase=false)
+    {
+        return detail::tokenizeRange(query.begin(), query.end(), toLowercase);
+    }
+
+    cache::Cache::Cache(size_t reserve, float maxLF)
+        : m_cache(reserve)
+        , m_maxLF(maxLF)
+    {
+    }
+
+    void cache::Cache::cache(const std::string& key, const std::string& json, CacheType::Type cacheType)
+    {
+        m_clear = false;
+        const cache::CacheTypeEntryPtr& typeEntry = m_cache.get(cacheType);
+        if (typeEntry->loadFactor() > m_maxLF)
         {
-            auto q = p;
-            p = std::find_first_of(p, mmap->end(), delims.begin(), delims.end());
-
-            if (p == mmap->end())
-            {
-                return res;
-            }
-            const auto pos = p - mmap->begin();
-            std::string token{q, p};
-            if (toLowercase)
-            {
-                utils::toLower(token);
-            }
-
-            res.emplace_back(token, pos);
+            typeEntry->eraseRandom();
         }
+
+        typeEntry->insert(key, json);
+    }
+
+    void cache::Cache::invalidate()
+    {
+        if (m_clear)
+        {
+            return;
+        }
+        for (const auto& cacheType: CacheType::All)
+        {
+            const cache::CacheTypeEntryPtr& typeEntry = m_cache.get(cacheType);
+            if (typeEntry)
+            {
+                typeEntry->drop();
+            }
+        }
+        m_clear = true;
+    }
+
+    cache::CacheEntry cache::Cache::search(const std::string& key, CacheType::Type cacheType, bool& found) const
+    {
+        cache::CacheTypeEntryPtr typeEntry = m_cache.get(cacheType);
+        if (!typeEntry)
+        {
+            found = false;
+            return {};
+        }
+        cache::CacheEntry entry = typeEntry->get(key);
+        found = !entry.empty();
+        return entry;
+    }
+
+    void cache::Cache::insert(CacheType::Type cacheType, const cache::CacheTypeEntryPtr& entryPtr)
+    {
+        m_cache.insert(cacheType, entryPtr);
     }
 
     SearchEngine::SearchEngine(const SearchEngineParams& params)
@@ -37,9 +75,19 @@ namespace core
         const size_t queues = params.threads / 3 > 0 ? params.threads / 3 : 1;
 
         m_storage = std::make_shared<Shard>(params.maxLF, params.size);
-        m_cache = std::make_shared<Cache>(params.size * params.cacheSize);
+        m_cache = std::make_shared<cache::Cache>((sizeof(CacheType::All) / 8) * 2, params.maxLF);
         m_pool = std::make_unique<ThreadPool>(queues, params.threads, true);
         m_semantics = SemanticParams{params.toLowercase};
+
+        initCache(params.size * params.cacheSize);
+    }
+
+    void SearchEngine::initCache(size_t reserve)
+    {
+        for (const auto& cacheType: CacheType::All)
+        {
+            m_cache->insert(cacheType, std::make_shared<SUMap<std::string, cache::CacheEntry>>(reserve));
+        }
     }
 
     bool SearchEngine::indexDir(const std::string& strPath)
@@ -88,17 +136,18 @@ namespace core
             return false;
         }
 
-        for (auto&& token: tokenize(mmap, m_semantics.lcaseTokens))
+        auto tokens = tokenize(mmap, m_semantics.lcaseTokens);
+        for (auto&& token: tokens)
         {
-            insert(std::move(token.first), strPath, token.second);
+            insert(std::move(token.first), strPath, {tokens.size()}, token.second);
         }
         return true;
     }
 
-    void SearchEngine::insert(std::string&& token, const std::string& doc, size_t pos)
+    void SearchEngine::insert(std::string&& token, const std::string& doc, DocStat&& docStat, size_t pos)
     {
-        invalidateCache(token);
-        m_storage->insert(std::move(token), doc, pos);
+        invalidateCache();
+        m_storage->insert(std::move(token), doc, std::move(docStat), pos);
     }
 
     ConstTokenRecordPtr SearchEngine::search(const std::string& token, bool& found) const
@@ -106,34 +155,92 @@ namespace core
         return m_storage->search(token, found);
     }
 
+    static void rankDocs(SUMap<std::string, float>& ranks, const std::string& path, float tfIdf)
+    {
+        ranks.mutate(path, [tfIdf](const auto& it, bool iterValid) {
+            if (iterValid)
+            {
+                it->second += tfIdf;
+                return 0.0f;
+            }
+            return tfIdf;
+        });
+    }
+
+    tfidf::RankedDocs SearchEngine::searchQuery(std::string query)
+    {
+        if (m_params.toLowercase)
+        {
+            utils::toLower(query);
+        }
+
+        SUMap<std::string, float> ranks(m_storage->docCount() * query.size() * 10e-2);
+        {
+            std::vector<WaitableFuture> futures;
+            for (auto&& [token, _]: tokenize(query))
+            {
+                futures.push_back(m_pool->submitTask(
+                    [this, &ranks, tok = token] {
+                        bool found;
+                        const auto recordPtr = search(tok, found);
+                        if (!found)
+                        {
+                            return;
+                        }
+
+                        const auto snapshot = recordPtr->snapshot();
+                        std::unordered_map<std::string_view, size_t> hist;
+                        hist.reserve(snapshot.size());
+                        for (auto&[path, _pos]: snapshot)
+                        {
+                            hist[path]++;
+                        }
+
+                        const float idf = log10f((float)m_storage->docCount() / hist.size());
+                        if (idf < 0.05)
+                        {
+                            return;
+                        }
+                        for (auto&&[pathView, freq]: hist)
+                        {
+                            std::string path{pathView};
+                            const float tf = (float)freq / m_storage->tokenCountPerDoc(path);
+                            rankDocs(ranks, path, tf * idf);
+                        }
+                    },
+                    true));
+            }
+        }
+
+        auto snapshot = ranks.snapshot();
+        snapshot.sort(tfidf::docRankCompare);
+
+        auto threshold = snapshot.begin();
+        std::advance(threshold, snapshot.size() < 20 ? snapshot.size() : 20);
+
+        return tfidf::RankedDocs{std::make_move_iterator(snapshot.begin()),
+                                 std::make_move_iterator(threshold)};
+    }
+
     void SearchEngine::erase(const std::string& token)
     {
-        invalidateCache(token);
+        invalidateCache();
         return m_storage->erase(token);
     }
 
-    void SearchEngine::cacheTokenContext(const std::string& token, const std::vector<std::string>& contexts)
+    void SearchEngine::cache(const std::string& key, const std::string& json, CacheType::Type cacheType)
     {
-        if (m_cache->loadFactor() > m_params.maxLF)
-        {
-            m_cache->eraseRandom();
-        }
-        m_cache->insert(std::make_pair(CacheType::ContextSearch, token), contexts);
+        m_cache->cache(key, json, cacheType);
     }
 
-    CacheEntry SearchEngine::searchCache(CacheType::Type cacheType, const std::string& token, bool& found) const
+    cache::CacheEntry SearchEngine::searchCache(const std::string& key, CacheType::Type cacheType, bool& found) const
     {
-        CacheEntry entry = m_cache->get(std::make_pair(cacheType, token));
-        found = !entry.empty();
-        return entry;
+        return m_cache->search(key, cacheType, found);
     }
 
-    void SearchEngine::invalidateCache(const std::string& token)
+    void SearchEngine::invalidateCache()
     {
-        for (const auto& cacheType: CacheType::All)
-        {
-            m_cache->erase(std::make_pair(cacheType, token));
-        }
+        m_cache->invalidate();
     }
 
     size_t SearchEngine::tokenCount() const
@@ -168,6 +275,8 @@ namespace core
         auto now = std::chrono::system_clock::now();
         auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
 
+        Json data = {{"timestamp", ns.count()}};
+        data.update(m_storage->serialize());
         if (path.extension() == ".json")
         {
             std::ofstream f(path);
@@ -175,7 +284,7 @@ namespace core
             {
                 return false;
             }
-            f << Json{{"timestamp", ns.count()}, {"dump", m_storage->serialize()}};
+            f << data;
             return true;
         }
         if (path.extension() == ".bson")
@@ -185,7 +294,6 @@ namespace core
             {
                 return false;
             }
-            Json data = {{"timestamp", ns.count()}, {"dump", m_storage->serialize()}};
             std::vector<uint8_t> bjdata = Json::to_bjdata(data);
             f.write(reinterpret_cast<const char*>(bjdata.data()), bjdata.size());
             return true;
@@ -198,7 +306,7 @@ namespace core
         isStale = false;
         const std::filesystem::path path = std::filesystem::u8path(strPath);
 
-        Json dump;
+        Json backup;
         if (path.extension() == ".json")
         {
             std::ifstream f(path);
@@ -206,7 +314,7 @@ namespace core
             {
                 return false;
             }
-            dump = Json::parse(f);
+            backup = Json::parse(f);
         }
         else if (path.extension() == ".bson")
         {
@@ -216,16 +324,18 @@ namespace core
                 return false;
             }
             std::vector<uint8_t> bjdata(std::istreambuf_iterator<char>(f), {});
-            dump = Json::from_bjdata(bjdata.begin(), bjdata.end());
+            backup = Json::from_bjdata(bjdata.begin(), bjdata.end());
         }
         else
         {
             return false;
         }
 
-        const Json& index = dump.at("dump");
-        size_t dumpTs = dump.at("timestamp").get<size_t>();
-        for (auto&& [token, info]: index.items())
+        size_t dumpTs = backup.at("timestamp").get<size_t>();
+        const Json& dump = backup.at("dump");
+        const Json& docTrace = backup.at("docTrace");
+
+        for (auto&& [token, info]: dump.items())
         {
             for (auto& it: info)
             {
@@ -238,7 +348,9 @@ namespace core
                     */
                     isStale = true;
                 }
-                m_storage->insert(std::string{token}, docPath, it.at(1));
+
+                DocStat docStat = docTrace.at(docPath).get<DocStat>();
+                m_storage->insert(std::string{token}, docPath, std::move(docStat), it.at(1));
             }
         }
         return true;

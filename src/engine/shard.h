@@ -31,7 +31,7 @@ namespace core
     {
     public:
         Shard(float maxLoadFactor, size_t expectedTokenCount);
-        void insert(std::string&& token, const std::string& doc, size_t pos);
+        void insert(std::string&& token, const std::string& doc, DocStat&& docStat, size_t pos);
         ConstTokenRecordPtr search(const std::string& token, bool& exists) const;
         void erase(const std::string& token);
         bool exists(const std::string& token) const;
@@ -39,6 +39,7 @@ namespace core
         bool isExpandable() const;
         size_t tokenCount() const;
         size_t docCount() const;
+        size_t tokenCountPerDoc(const std::string& path) const;
         Json serialize() const;
 
     private:

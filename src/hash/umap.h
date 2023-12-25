@@ -118,6 +118,19 @@ namespace core
                 isErased = true;
             }
 
+            void drop()
+            {
+                std::unique_lock<std::shared_mutex> lock(m_mtx);
+                m_data.clear();
+            }
+
+            std::list<BucketValue> snapshot() const
+            {
+                std::list<BucketValue> values;
+                std::shared_lock<std::shared_mutex> lock(m_mtx);
+                return std::list<BucketValue>(m_data.begin(), m_data.end());
+            }
+
             Key eraseRandom(const Key& defaultKey)
             {
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
@@ -133,7 +146,7 @@ namespace core
             Json serialize() const
             {
                 Json bucket;
-                std::unique_lock<std::shared_mutex> lock(m_mtx);
+                std::shared_lock<std::shared_mutex> lock(m_mtx);
                 for (const BucketValue& data: m_data)
                 {
                     Json pair;
@@ -248,6 +261,19 @@ namespace core
             return isErased;
         }
 
+        void drop()
+        {
+            if (m_size == 0)
+            {
+                return;
+            }
+            for (const auto& bucket: m_buckets)
+            {
+                bucket->drop();
+            }
+            m_size = 0;
+        }
+
         Key eraseRandom(const Key& defaultKey = Key())
         {
             /**
@@ -269,6 +295,16 @@ namespace core
                 }
             }
             return erased;
+        }
+
+        std::list<BucketValue> snapshot() const
+        {
+            std::list<BucketValue> values;
+            for (const auto& bucket: m_buckets)
+            {
+                values.splice(values.end(), bucket->snapshot());
+            }
+            return values;
         }
 
         size_t size() const noexcept

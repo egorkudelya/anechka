@@ -12,6 +12,10 @@ message BasicToken {
     token: string
 }
 
+message SearchQueryRequest {
+    query: string
+}
+
 message InsertResponse {
     ok: bool,
     indexSize: uint64,
@@ -25,11 +29,11 @@ message EraseResponse {
 }
 
 message SearchResponse {
-    json: string,
+    response: string,
     took: string
 }
 
-message ContextResponse {
+message ContextSearchResponse {
     # array of json strings with the following layout:
     # [
     #     {
@@ -37,7 +41,19 @@ message ContextResponse {
     #         "contexts": [sentence1, sentence2, ...]
     #     }
     # ]
-    result: array[string],
+    responses: array[string],
+    took: string
+}
+
+message SearchQueryResponse {
+    # json string with the following layout:
+    # [
+    #     {
+    #         "path": filepath,
+    #         "rank": float
+    #     }
+    # ]
+    rankedDocs: string,
     took: string
 }
 
@@ -45,4 +61,5 @@ method RequestTxtFileIndexing(Path) -> InsertResponse;
 method RequestRecursiveDirIndexing(Path) -> InsertResponse;
 method RequestTokenDeletion(BasicToken) -> EraseResponse;
 method RequestTokenSearch(BasicToken) -> SearchResponse;
-method RequestTokenSearchWithContext(BasicToken) -> ContextResponse;
+method RequestTokenSearchWithContext(BasicToken) -> ContextSearchResponse;
+method RequestQuerySearch(SearchQueryRequest) -> SearchQueryResponse;

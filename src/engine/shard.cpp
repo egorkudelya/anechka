@@ -2,23 +2,26 @@
 
 namespace core
 {
+    // TODO
+    static const float tokenDTraceShare = 0.00125;
+
     Shard::Shard(float maxLoadFactor, size_t expectedTokenCount)
         : m_maxLoadFactor(maxLoadFactor)
         , m_record((float)expectedTokenCount / maxLoadFactor)
-        , m_docTrace(expectedTokenCount/3)
+        , m_docTrace(expectedTokenCount/5)
     {
     }
 
-    void Shard::insert(std::string&& token, const std::string& doc, size_t pos)
+    void Shard::insert(std::string&& token, const std::string& doc, DocStat&& docStat, size_t pos)
     {
-        std::string_view ref = m_docTrace.addOrIncrement(doc);
-        auto callback = [ref, pos = pos](const auto& it, bool iterValid) {
+        std::string_view ref = m_docTrace.addOrIncrement(doc, std::move(docStat));
+        auto callback = [this, ref, pos = pos](const auto& it, bool iterValid) {
             if (iterValid)
             {
                 it->second->addIfNotPresent(std::make_pair(ref, pos));
                 return TokenRecordPtr{};
             }
-            auto newRecord = std::make_shared<TokenRecord>();
+            auto newRecord = std::make_shared<TokenRecord>(m_docTrace.size() * tokenDTraceShare);
             newRecord->addIfNotPresent(std::make_pair(ref, pos));
             return newRecord;
         };
@@ -52,7 +55,7 @@ namespace core
 
         if (m_record.erase(token))
         {
-            for (auto&&[path, _]: record->values())
+            for (auto&&[path, _]: record->snapshot())
             {
                 m_docTrace.eraseOrDecrement(std::string{path});
             }
@@ -84,8 +87,15 @@ namespace core
         return m_docTrace.size();
     }
 
+    size_t Shard::tokenCountPerDoc(const std::string& path) const
+    {
+        return m_docTrace.getTokenCount(path);
+    }
+
     Json Shard::serialize() const
     {
-        return m_record.serialize();
+        const auto& dump = m_record.serialize();
+        const auto& docTrace = m_docTrace.serialize();
+        return Json{{"dump", dump}, {"docTrace", docTrace}};
     }
 }

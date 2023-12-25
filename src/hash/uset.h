@@ -66,7 +66,7 @@ namespace core
                 return true;
             }
 
-            std::list<Value> values() const
+            std::list<Value> snapshot() const
             {
                 std::list<Value> values;
                 std::shared_lock<std::shared_mutex> lock(m_mtx);
@@ -76,7 +76,7 @@ namespace core
             Json serialize() const
             {
                 Json bucket;
-                std::unique_lock<std::shared_mutex> lock(m_mtx);
+                std::shared_lock<std::shared_mutex> lock(m_mtx);
                 for (const auto& data: m_data)
                 {
                     bucket.push_back(utils::serializeType(data));
@@ -150,12 +150,12 @@ namespace core
             return getBucket(value).contains(value);
         }
 
-        std::list<Value> values() const
+        std::list<Value> snapshot() const
         {
             std::list<Value> values;
             for (const auto& bucket: m_buckets)
             {
-                values.splice(values.end(), bucket->values());
+                values.splice(values.end(), bucket->snapshot());
             }
             return values;
         }
@@ -184,6 +184,16 @@ namespace core
             * operation taking place in some other thread, but it is acceptable in this case
             */
             return m_size;
+        }
+
+        float loadFactor() const noexcept
+        {
+            float lf = m_size / (float)m_buckets.size();
+            if (lf > 1.0f)
+            {
+                return 1.0f;
+            }
+            return lf;
         }
 
     private:

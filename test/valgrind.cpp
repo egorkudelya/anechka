@@ -12,7 +12,7 @@ TEST(Anechka, Valgrind)
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    auto clientStubPtr = std::make_unique<net::ClientStub>();
+    auto clientStubPtr = std::make_unique<anechka::ClientStub>();
 
     const std::string& source = "../test/data/sample.txt";
     clientStubPtr->RequestTxtFileIndexing(source);
@@ -24,7 +24,7 @@ TEST(Anechka, Valgrind)
     for (size_t i = 0; i < 10; i++)
     {
         clientThreads.emplace_back([&tokens, &responseCount, &source]{
-            auto clientStubPtr = std::make_unique<net::ClientStub>();
+            auto clientStubPtr = std::make_unique<anechka::ClientStub>();
 
             std::vector<std::string> out;
             std::sample(
@@ -39,16 +39,20 @@ TEST(Anechka, Valgrind)
             {
                 auto r1 = clientStubPtr->RequestTokenSearch(out[i % out.size()]);
                 auto r2 = clientStubPtr->RequestTokenSearchWithContext(out[i % out.size()]);
-                auto r3 = clientStubPtr->RequestTxtFileIndexing(source);
+                auto r3 = clientStubPtr->RequestTokenDeletion(out[i % out.size()]);
+                auto r4 = clientStubPtr->RequestTxtFileIndexing(source);
+                auto r5 = clientStubPtr->RequestTokenSearchWithContext(out[0] + ' ' + out[1] + ' ' + out[2]);
                 if (r1->getStatus() == net::ProtocolStatus::OK &&
                     r2->getStatus() == net::ProtocolStatus::OK &&
-                    r3->getStatus() == net::ProtocolStatus::OK)
+                    r3->getStatus() == net::ProtocolStatus::OK &&
+                    r4->getStatus() == net::ProtocolStatus::OK &&
+                    r5->getStatus() == net::ProtocolStatus::OK)
                 {
                     responseCount++;
                 }
-                r1->print();
-                r2->print();
-                r3->print();
+//                r1->print();
+//                r2->print();
+//                r3->print();
             }
         });
     }

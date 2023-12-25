@@ -18,6 +18,7 @@ namespace anechka
         net::ResponsePtr RequestTokenSearch(const net::RequestPtr& requestPtr) override;
         net::ResponsePtr RequestTokenSearchWithContext(const net::RequestPtr& requestPtr) override;
         net::ResponsePtr RequestTokenDeletion(const net::RequestPtr& requestPtr) override;
+        net::ResponsePtr RequestQuerySearch(const net::RequestPtr& requestPtr) override;
 
     private:
         void config(const std::string& configPath);

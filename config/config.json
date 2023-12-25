@@ -3,9 +3,9 @@
   "se_threads": 8,
   "serv_threads": 8,
   "max_load_factor": 0.75,
-  "cache_size": 0.25,
+  "cache_size": 0.15,
   "to_lowercase": false,
-  "is_persistent": false,
+  "is_persistent": true,
   "is_restoring_on_start": true,
   "port": 4444
 }

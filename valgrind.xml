@@ -9,7 +9,7 @@
   <line>Memcheck, a memory error detector</line>
   <line>Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.</line>
   <line>Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info</line>
-  <line>Command: /tmp/anechka/cmake-build-debug/a_test5 --gtest_filter=Anechka.Valgrind:Anechka/*.Valgrind:Anechka.Valgrind/*:*/Anechka.Valgrind/*:*/Anechka/*.Valgrind --gtest_color=no</line>
+  <line>Command: /tmp/anechka/cmake-build-debug/a_test6 --gtest_filter=Anechka.Valgrind:Anechka/*.Valgrind:Anechka.Valgrind/*:*/Anechka.Valgrind/*:*/Anechka/*.Valgrind --gtest_color=no</line>
 </preamble>
 
 <pid>1</pid>
@@ -21,7 +21,7 @@
     <exe>/usr/bin/valgrind.bin</exe>
     <arg>--tool=memcheck</arg>
     <arg>--xml=yes</arg>
-    <arg>--xml-file=/tmp/misc/clion-valgrind8a31086e-4091-49f2-95c9-3df74f1941a94733149710988511626/valgrind_output_%p</arg>
+    <arg>--xml-file=/tmp/misc/clion-valgrind0ea7dcbf-424d-405b-bc1d-ec58f722a6f78666928935874619232/valgrind_output_%p</arg>
     <arg>--gen-suppressions=all</arg>
     <arg>--leak-check=full</arg>
     <arg>--leak-resolution=med</arg>
@@ -29,7 +29,7 @@
     <arg>--log-file=valgrind.txt</arg>
   </vargv>
   <argv>
-    <exe>/tmp/anechka/cmake-build-debug/a_test5</exe>
+    <exe>/tmp/anechka/cmake-build-debug/a_test6</exe>
     <arg>--gtest_filter=Anechka.Valgrind:Anechka/*.Valgrind:Anechka.Valgrind/*:*/Anechka.Valgrind/*:*/Anechka/*.Valgrind</arg>
     <arg>--gtest_color=no</arg>
   </argv>
@@ -37,13 +37,13 @@
 
 <status>
   <state>RUNNING</state>
-  <time>00:00:00:00.306 </time>
+  <time>00:00:00:00.256 </time>
 </status>
 
 
 <status>
   <state>FINISHED</state>
-  <time>00:00:01:52.142 </time>
+  <time>00:00:04:00.216 </time>
 </status>
 
 <errorcounts>

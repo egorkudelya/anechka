@@ -2,12 +2,23 @@
 
 namespace core
 {
+    void to_json(Json& json, const DocStat& docStat)
+    {
+        json = Json {{"tokenCount", docStat.tokenCount}};
+    }
+
+    void from_json(const Json& json, DocStat& docStat)
+    {
+        json.at("tokenCount").get_to(docStat.tokenCount);
+    }
+
     DocTrace::DocTrace(size_t reserve)
         : m_trace(reserve)
+        , m_stats(reserve)
     {
     }
 
-    std::string_view DocTrace::addOrIncrement(const std::string& path)
+    std::string_view DocTrace::addOrIncrement(const std::string& path, DocStat&& docStat)
     {
         std::string_view hook;
         auto callback = [&hook](const auto& it, bool iterValid) {
@@ -23,6 +34,7 @@ namespace core
         if (hook.empty())
         {
             m_trace.mutate(path, callback);
+            m_stats.insert(hook, docStat);
         }
 
         return hook;
@@ -30,7 +42,7 @@ namespace core
 
     void DocTrace::eraseOrDecrement(const std::string& path)
     {
-        auto callback = [](const auto& it, bool iterValid) {
+        m_trace.mutate(path, [](const auto& it, bool iterValid) {
             if (iterValid)
             {
                 it->second--;
@@ -40,9 +52,11 @@ namespace core
                 }
             }
             return 0;
-        };
-
-        m_trace.mutate(path, std::move(callback));
+        });
+        if (!m_trace.exists(path))
+        {
+            m_stats.erase(path);
+        }
     }
 
     size_t DocTrace::getRefCount(const std::string& path) const
@@ -50,8 +64,18 @@ namespace core
         return m_trace.get(path);
     }
 
+    size_t DocTrace::getTokenCount(const std::string& path) const
+    {
+        return m_stats.get(path).tokenCount;
+    }
+
     size_t DocTrace::size() const
     {
         return m_trace.size();
+    }
+
+    Json DocTrace::serialize() const
+    {
+        return m_stats.serialize();
     }
 }

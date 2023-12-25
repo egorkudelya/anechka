@@ -117,7 +117,7 @@ namespace anechka
             bool stale;
             if (!m_searchEngine->restore(m_dumpPath, stale))
             {
-                std::cerr << "Failed to load index from dump. Make sure it exists in the anechka/dump/ directory\n";
+                std::cerr << "Failed to load index from dump. Make sure it exists in the dump/ directory\n";
                 return;
             }
             if (stale)
@@ -199,11 +199,11 @@ namespace anechka
 
         if (found)
         {
-            responsePtr->getJson() = tokenPtr->serialize().dump(2);
+            responsePtr->getResponse() = tokenPtr->serialize().dump(2);
         }
         else
         {
-            responsePtr->getJson() = R"({"status": "not found"})";
+            responsePtr->getResponse() = R"({"status": "not found"})";
         }
         responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
 
@@ -231,15 +231,15 @@ namespace anechka
     {
         utils::Timer timer{};
         auto tokenRequestPtr = utils::downcast<net::BasicToken::BasicToken>(requestPtr);
-        auto responsePtr = std::make_shared<net::ContextResponse::ContextResponse>();
+        auto responsePtr = std::make_shared<net::ContextSearchResponse::ContextSearchResponse>();
 
         const std::string& token = tokenRequestPtr->getToken();
 
         bool foundCache = false;
-        auto entry = m_searchEngine->searchCache(core::CacheType::ContextSearch, token, foundCache);
+        auto entry = m_searchEngine->searchCache(token, core::CacheType::ContextSearch, foundCache);
         if (foundCache)
         {
-            responsePtr->getResult() = entry;
+            responsePtr->getResponses() = Json::parse(entry).get<std::vector<std::string>>();
             responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
             return responsePtr;
         }
@@ -251,7 +251,7 @@ namespace anechka
             return responsePtr;
         }
 
-        std::vector<std::string>& index = responsePtr->getResult();
+        std::vector<std::string>& index = responsePtr->getResponses();
 
         std::unordered_multimap<std::string, std::string> contexts;
         for (const auto& pair: tokenPtr->serialize())
@@ -289,7 +289,36 @@ namespace anechka
             index.push_back(final.dump(2));
         }
         responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
-        m_searchEngine->cacheTokenContext(token, index);
+        m_searchEngine->cache(token, Json(index).dump(), core::CacheType::Type::ContextSearch);
+
+        return responsePtr;
+    }
+
+    net::ResponsePtr Anechka::RequestQuerySearch(const net::RequestPtr& requestPtr)
+    {
+        utils::Timer timer{};
+        auto queryRequestPtr = utils::downcast<net::SearchQueryRequest::SearchQueryRequest>(requestPtr);
+        auto responsePtr = std::make_shared<net::SearchQueryResponse::SearchQueryResponse>();
+
+        const std::string& query = queryRequestPtr->getQuery();
+
+        bool foundCache = false;
+        auto cachedRank = m_searchEngine->searchCache(query, core::CacheType::QuerySearch, foundCache);
+        if (foundCache)
+        {
+            responsePtr->getRankeddocs() = cachedRank;
+            responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
+
+            return responsePtr;
+        }
+
+        core::tfidf::RankedDocs ranked = m_searchEngine->searchQuery(queryRequestPtr->getQuery());
+        std::string serializedRank = Json(ranked).dump(2);
+
+        responsePtr->getRankeddocs() = serializedRank;
+        responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
+
+        m_searchEngine->cache(query, {serializedRank}, core::CacheType::Type::QuerySearch);
 
         return responsePtr;
     }

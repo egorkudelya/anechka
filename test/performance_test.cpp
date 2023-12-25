@@ -5,7 +5,7 @@
 #include <thread>
 
 
-TEST(Anechka, Perfomance)
+TEST(Anechka, Performance)
 {
     const std::filesystem::path path = "../vault";
     ASSERT_TRUE(std::filesystem::exists(path));
@@ -13,10 +13,10 @@ TEST(Anechka, Perfomance)
     auto anechkaPtr = std::make_unique<anechka::Anechka>("../test/config/config.json");
     anechkaPtr->run();
 
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
     std::thread clientThread = std::thread([&path] {
-        auto clientPtr = std::make_unique<net::ClientStub>();
+        auto clientPtr = std::make_unique<anechka::ClientStub>();
         utils::Timer dirIndexingTimer{};
         clientPtr->RequestRecursiveDirIndexing(path);
         size_t indexInterval = dirIndexingTimer.getInterval();
