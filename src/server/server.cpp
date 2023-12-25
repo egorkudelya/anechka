@@ -265,7 +265,7 @@ namespace anechka
             }
             catch (const std::exception& err)
             {
-                return responsePtr;
+                continue;
             }
 
             contexts.emplace(path, escape(contextualize(mmap, i)));
