@@ -27,7 +27,7 @@ namespace net
         virtual ~AbstractMessage() = default;
         virtual Json toJson() const = 0;
         virtual void fromJson(const Json& json) = 0;
-        virtual void print() const = 0;
+        void print() const;
         void setMetadata(ProtocolStatus status, const std::string& meta);
         void setMetadata(MessageMetadata metadata);
         MessageMetadata getMetadata() const;

@@ -199,11 +199,19 @@ namespace anechka
 
         if (found)
         {
-            responsePtr->getResponse() = tokenPtr->serialize().dump(2);
+            std::vector<std::string> final;
+            auto snapshot = tokenPtr->snapshot();
+            final.reserve(snapshot.size());
+            for (auto&&[path, pos]: snapshot)
+            {
+                Json docEntry{{"path", path}, {"pos", pos}};
+                final.push_back(docEntry.dump(2));
+            }
+            responsePtr->getResponse() = final;
         }
         else
         {
-            responsePtr->getResponse() = R"({"status": "not found"})";
+            responsePtr->getResponse() = {};
         }
         responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
 
@@ -306,19 +314,26 @@ namespace anechka
         auto cachedRank = m_searchEngine->searchCache(query, core::CacheType::QuerySearch, foundCache);
         if (foundCache)
         {
-            responsePtr->getRankeddocs() = cachedRank;
+            responsePtr->getRankeddocs() = Json::parse(cachedRank).get<std::vector<std::string>>();
             responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
 
             return responsePtr;
         }
 
         core::tfidf::RankedDocs ranked = m_searchEngine->searchQuery(queryRequestPtr->getQuery());
-        std::string serializedRank = Json(ranked).dump(2);
 
-        responsePtr->getRankeddocs() = serializedRank;
+        std::vector<std::string> final;
+        final.reserve(ranked.size());
+        for (const auto& docRes: ranked)
+        {
+            Json docEntry{{"path", docRes.first}, {"rank", docRes.second}};
+            final.push_back(docEntry.dump(2));
+        }
+
+        responsePtr->getRankeddocs() = final;
         responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
 
-        m_searchEngine->cache(query, {serializedRank}, core::CacheType::Type::QuerySearch);
+        m_searchEngine->cache(query, {Json(final).dump()}, core::CacheType::Type::QuerySearch);
 
         return responsePtr;
     }

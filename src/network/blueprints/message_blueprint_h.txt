@@ -13,7 +13,6 @@ namespace net::{MESSAGE_NAME}
     public:
         [[nodiscard]] Json toJson() const override;
         void fromJson(const Json& json) override;
-        void print() const override;
 
         {HEADER_GETTER_SECTION}
 

@@ -29,7 +29,14 @@ message EraseResponse {
 }
 
 message SearchResponse {
-    response: string,
+    # array of json strings with the following layout:
+    # [
+    #     {
+    #         "path": filepath,
+    #         "pos": int
+    #     }
+    # ]
+    response: array[string],
     took: string
 }
 
@@ -46,14 +53,14 @@ message ContextSearchResponse {
 }
 
 message SearchQueryResponse {
-    # json string with the following layout:
+    # array of json strings with the following layout:
     # [
     #     {
     #         "path": filepath,
     #         "rank": float
     #     }
     # ]
-    rankedDocs: string,
+    rankedDocs: array[string],
     took: string
 }
 
