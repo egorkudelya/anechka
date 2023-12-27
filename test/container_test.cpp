@@ -8,7 +8,8 @@ TEST(SUMapTest, Basic)
 
     for (auto&&[first, second]: map.iterate())
     {
-        ASSERT_FALSE("This should not have happened");
+        std::cerr << "This should not have happened" << '\n';
+        ASSERT_FALSE(true);
     }
 
     map.insert("Hello", "World");
@@ -43,7 +44,8 @@ TEST(USetTest, Basic)
 
     for (auto&& val: set.iterate())
     {
-        ASSERT_FALSE("This should not have happened");
+        std::cerr << "This should not have happened" << '\n';
+        ASSERT_FALSE(true);
     }
 
     set.addIfNotPresent("Hello");

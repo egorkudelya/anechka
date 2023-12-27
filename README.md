@@ -49,7 +49,13 @@ The engine will index the data and make it searchable using RequestTokenSearch o
 Let's query some data and test searching capabilities of the engine. For example, executing RequestTokenSearchWithContext and passing it some token,
 in our case "conscientious", returns the following response:
 
-![Example Image](https://drive.google.com/uc?id=1icV1EjDIeIxME5WwsEOGN2oF-tdcly5S)
+![Example Image](https://drive.google.com/uc?id=1ogzu4ZZZIYv4JP1DBniT7Hd5wfnYWO3n)
 
 As you can see, the message conforms to the format specified in the proto file. We received the time it took to execute the query in milliseconds 
 and a number of JSON documents. Each document contains the path to the file, along with the context array containing the sentences where the searched token appears.
+
+Now, let's try query search. Suppose we want to find the most relevant documents for a given query, 
+for instance, "Not my cup of tea". The response contains an array of ranked documents ordered by rank, where each entry 
+contains the path to the file and its relevance rank:
+
+![Example Image](https://drive.google.com/uc?id=1bHwPM-0fQCuiHAIqTTVEM7xvPTFkiO9G)
