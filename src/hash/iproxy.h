@@ -25,8 +25,8 @@ namespace core
                 while (m_bucketId < m_buffer.size() && m_crawl == m_buffer[m_bucketId]->end())
                 {
                     const BucketTypePtr& currBucket = m_buffer[m_bucketId];
-                    size_t distance = std::distance(currBucket->begin(), m_crawl);
-                    if (distance < currBucket->size() - 1)
+                    std::ptrdiff_t distance = std::distance(currBucket->begin(), m_crawl);
+                    if (currBucket->size() > 0 && distance < currBucket->size() - 1)
                     {
                         m_crawl++;
                     }
