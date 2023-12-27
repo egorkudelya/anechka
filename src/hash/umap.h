@@ -380,7 +380,7 @@ namespace core
             return lf;
         }
 
-        inline auto iterate()
+        inline auto iterate() const
         {
             return IterableProxy<const SUMap<KeyType, ValueType, Hash>, std::unique_lock>(m_buckets, m_globalMtx);
         }
@@ -403,7 +403,7 @@ namespace core
         }
 
     private:
-        std::shared_mutex m_globalMtx;
+        mutable std::shared_mutex m_globalMtx;
         const std::vector<std::unique_ptr<BucketType>> m_buckets;
         std::atomic<size_t> m_size;
         const size_t m_bucketCount;
