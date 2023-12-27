@@ -21,7 +21,8 @@ namespace core
     std::string_view DocTrace::addOrIncrement(const std::string& path, DocStat&& docStat)
     {
         std::string_view hook;
-        auto callback = [&hook](const auto& it, bool iterValid) {
+        auto callback = [&hook](const auto& it, bool iterValid, bool& shouldErase) {
+            shouldErase = false;
             if (iterValid)
             {
                 it->second++;
@@ -42,18 +43,19 @@ namespace core
 
     void DocTrace::eraseOrDecrement(const std::string& path)
     {
-        m_trace.mutate(path, [](const auto& it, bool iterValid) {
+        m_trace.mutate(path, [](const auto& it, bool iterValid, bool& shouldErase) {
+            shouldErase = false;
             if (iterValid)
             {
                 it->second--;
                 if (it->second == 0)
                 {
-                    it->first.erase();
+                    shouldErase = true;
                 }
             }
             return 0;
         });
-        if (!m_trace.exists(path))
+        if (!m_trace.contains(path))
         {
             m_stats.erase(path);
         }

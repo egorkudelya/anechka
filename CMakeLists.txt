@@ -89,7 +89,7 @@ target_link_libraries(client PRIVATE cl)
 add_subdirectory(vendor/googletest)
 
 set(TEST_SRC
-    test/umap_test.cpp
+    test/container_test.cpp
     test/mmap_test.cpp
     test/shard_test.cpp
     test/doc_trace.cpp

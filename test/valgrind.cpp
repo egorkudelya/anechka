@@ -14,8 +14,8 @@ TEST(Anechka, Valgrind)
 
     auto clientStubPtr = std::make_unique<anechka::ClientStub>();
 
-    const std::string& source = "../test/data/sample.txt";
-    clientStubPtr->RequestTxtFileIndexing(source);
+    const std::string& source = "../test/data/";
+    clientStubPtr->RequestRecursiveDirIndexing(source);
 
     std::vector<std::string> tokens{"The", "more", "I", "read", "acquire", "certain", "that", "know", "nothing"};
 
@@ -35,13 +35,13 @@ TEST(Anechka, Valgrind)
                 std::mt19937{std::random_device{}()}
             );
 
-            for (size_t i = 0; i < 100; i++)
+            for (size_t i = 0; i < 70; i++)
             {
                 auto r1 = clientStubPtr->RequestTokenSearch(out[i % out.size()]);
                 auto r2 = clientStubPtr->RequestTokenSearchWithContext(out[i % out.size()]);
                 auto r3 = clientStubPtr->RequestTokenDeletion(out[i % out.size()]);
-                auto r4 = clientStubPtr->RequestTxtFileIndexing(source);
-                auto r5 = clientStubPtr->RequestTokenSearchWithContext(out[0] + ' ' + out[1] + ' ' + out[2]);
+                auto r4 = clientStubPtr->RequestRecursiveDirIndexing(source);
+                auto r5 = clientStubPtr->RequestQuerySearch(out[0] + ' ' + out[1] + ' ' + out[2]);
                 if (r1->getStatus() == net::ProtocolStatus::OK &&
                     r2->getStatus() == net::ProtocolStatus::OK &&
                     r3->getStatus() == net::ProtocolStatus::OK &&
@@ -69,5 +69,5 @@ TEST(Anechka, Valgrind)
     }
 
     anechkaPtr->shutDown();
-    EXPECT_EQ(responseCount, 10 * 100);
+    EXPECT_EQ(responseCount, 10 * 70);
 }

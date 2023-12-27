@@ -21,7 +21,7 @@
     <exe>/usr/bin/valgrind.bin</exe>
     <arg>--tool=memcheck</arg>
     <arg>--xml=yes</arg>
-    <arg>--xml-file=/tmp/misc/clion-valgrind0ea7dcbf-424d-405b-bc1d-ec58f722a6f78666928935874619232/valgrind_output_%p</arg>
+    <arg>--xml-file=/tmp/misc/clion-valgrind011f6f6e-c14a-46d1-a6dd-10e2f674aaf26743361725211537457/valgrind_output_%p</arg>
     <arg>--gen-suppressions=all</arg>
     <arg>--leak-check=full</arg>
     <arg>--leak-resolution=med</arg>
@@ -37,13 +37,13 @@
 
 <status>
   <state>RUNNING</state>
-  <time>00:00:00:00.256 </time>
+  <time>00:00:00:00.200 </time>
 </status>
 
 
 <status>
   <state>FINISHED</state>
-  <time>00:00:04:00.216 </time>
+  <time>00:00:04:49.067 </time>
 </status>
 
 <errorcounts>

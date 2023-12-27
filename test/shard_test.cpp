@@ -5,14 +5,15 @@ TEST(ShardTest, Basic)
 {
     const float loadFactor = 0.75;
     const float estimate = 10;
-    auto shard = std::make_shared<core::Shard>(loadFactor, estimate);
+    const size_t docs = 10;
+    auto shard = std::make_shared<core::Shard>(loadFactor, estimate, docs);
 
-    shard->insert("apple", "first.txt", 145);
-    shard->insert("apple", "second.txt", 34);
-    shard->insert("apple", "first.txt", 99);
-    shard->insert("orange", "second.txt", 55);
-    shard->insert("apple", "first.txt", 98);
-    shard->insert("raspberry", "first.txt", 88);
+    shard->insert("apple", "first.txt", {docs}, 145);
+    shard->insert("apple", "second.txt", {docs}, 34);
+    shard->insert("apple", "first.txt", {docs}, 99);
+    shard->insert("orange", "second.txt", {docs}, 55);
+    shard->insert("apple", "first.txt", {docs}, 98);
+    shard->insert("raspberry", "first.txt", {docs},88);
 
     EXPECT_TRUE(shard->exists("apple"));
     EXPECT_TRUE(shard->isExpandable());

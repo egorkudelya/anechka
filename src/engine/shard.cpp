@@ -3,25 +3,30 @@
 namespace core
 {
     // TODO
-    static const float tokenDTraceShare = 0.00125;
+    static const float tokenDTraceShare = 0.00275f;
 
-    Shard::Shard(float maxLoadFactor, size_t expectedTokenCount)
+    Shard::Shard(float maxLoadFactor, size_t estTokenCount, size_t estDocCount)
         : m_maxLoadFactor(maxLoadFactor)
-        , m_record((float)expectedTokenCount / maxLoadFactor)
-        , m_docTrace(expectedTokenCount/5)
+        , m_record((float)estTokenCount / maxLoadFactor)
+        , m_docTrace(estDocCount)
     {
     }
 
     void Shard::insert(std::string&& token, const std::string& doc, DocStat&& docStat, size_t pos)
     {
         std::string_view ref = m_docTrace.addOrIncrement(doc, std::move(docStat));
-        auto callback = [this, ref, pos = pos](const auto& it, bool iterValid) {
+
+        auto callback = [dcSize = m_docTrace.size(), ref, pos = pos]
+                        (const auto& it, bool iterValid, bool& shouldErase)
+        {
+            shouldErase = false;
             if (iterValid)
             {
                 it->second->addIfNotPresent(std::make_pair(ref, pos));
                 return TokenRecordPtr{};
             }
-            auto newRecord = std::make_shared<TokenRecord>(m_docTrace.size() * tokenDTraceShare);
+            size_t expectedLoad = dcSize * tokenDTraceShare;
+            auto newRecord = std::make_shared<TokenRecord>(expectedLoad);
             newRecord->addIfNotPresent(std::make_pair(ref, pos));
             return newRecord;
         };
@@ -55,7 +60,7 @@ namespace core
 
         if (m_record.erase(token))
         {
-            for (auto&&[path, _]: record->snapshot())
+            for (auto&&[path, _]: record->iterate())
             {
                 m_docTrace.eraseOrDecrement(std::string{path});
             }
@@ -64,7 +69,7 @@ namespace core
 
     bool Shard::exists(const std::string& token) const
     {
-        return m_record.exists(token);
+        return m_record.contains(token);
     }
 
     float Shard::loadFactor() const

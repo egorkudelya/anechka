@@ -74,7 +74,7 @@ namespace core
         m_params = params;
         const size_t queues = params.threads / 3 > 0 ? params.threads / 3 : 1;
 
-        m_storage = std::make_shared<Shard>(params.maxLF, params.size);
+        m_storage = std::make_shared<Shard>(params.maxLF, params.size, params.docs);
         m_cache = std::make_shared<cache::Cache>((sizeof(CacheType::All) / 8) * 2, params.maxLF);
         m_pool = std::make_unique<ThreadPool>(queues, params.threads, true);
         m_semantics = SemanticParams{params.toLowercase};
@@ -137,6 +137,8 @@ namespace core
         }
 
         auto tokens = tokenize(mmap, m_semantics.lcaseTokens);
+//        printf("%s%s%s%zu\n", "Indexing ", strPath.c_str(), "; tokens: ", tokens.size());
+
         for (auto&& token: tokens)
         {
             insert(std::move(token.first), strPath, {tokens.size()}, token.second);
@@ -150,14 +152,19 @@ namespace core
         m_storage->insert(std::move(token), doc, std::move(docStat), pos);
     }
 
-    ConstTokenRecordPtr SearchEngine::search(const std::string& token, bool& found) const
+    ConstTokenRecordPtr SearchEngine::search(std::string token, bool& found) const
     {
+        if (m_params.toLowercase)
+        {
+            utils::toLower(token);
+        }
         return m_storage->search(token, found);
     }
 
     static void rankDocs(SUMap<std::string, float>& ranks, const std::string& path, float tfIdf)
     {
-        ranks.mutate(path, [tfIdf](const auto& it, bool iterValid) {
+        ranks.mutate(path, [tfIdf](const auto& it, bool iterValid, bool& shouldErase) {
+            shouldErase = false;
             if (iterValid)
             {
                 it->second += tfIdf;
@@ -174,13 +181,13 @@ namespace core
             utils::toLower(query);
         }
 
-        SUMap<std::string, float> ranks(m_storage->docCount() * query.size() * 10e-2);
+        SUMap<std::string, float> ranks(m_storage->docCount() * 10e-2);
         {
             std::vector<WaitableFuture> futures;
-            for (auto&& [token, _]: tokenize(query))
+            for (auto&&[token, _]: tokenize(query))
             {
                 futures.push_back(m_pool->submitTask(
-                    [this, &ranks, tok = token] {
+                    [this, &ranks, tok = std::move(token)] {
                         bool found;
                         const auto recordPtr = search(tok, found);
                         if (!found)
@@ -188,19 +195,13 @@ namespace core
                             return;
                         }
 
-                        const auto snapshot = recordPtr->snapshot();
                         std::unordered_map<std::string_view, size_t> hist;
-                        hist.reserve(snapshot.size());
-                        for (auto&[path, _pos]: snapshot)
+                        for (auto&[path, _pos]: recordPtr->iterate())
                         {
                             hist[path]++;
                         }
 
                         const float idf = log10f((float)m_storage->docCount() / hist.size());
-                        if (idf < 0.05)
-                        {
-                            return;
-                        }
                         for (auto&&[pathView, freq]: hist)
                         {
                             std::string path{pathView};
@@ -212,14 +213,18 @@ namespace core
             }
         }
 
-        auto snapshot = ranks.snapshot();
-        snapshot.sort(tfidf::docRankCompare);
+        auto snapshot = ranks.snapshotDense();
+        const size_t topX = snapshot.size() < 20 ? snapshot.size() : 20;
 
-        auto threshold = snapshot.begin();
-        std::advance(threshold, snapshot.size() < 20 ? snapshot.size() : 20);
+        auto threshold = snapshot.begin() + topX;
+        std::partial_sort(snapshot.begin(), threshold, snapshot.end(), [](auto&& first, auto&& second) {
+            return tfidf::docRankCompare(first, second);
+        });
 
-        return tfidf::RankedDocs{std::make_move_iterator(snapshot.begin()),
-                                 std::make_move_iterator(threshold)};
+        return tfidf::RankedDocs {
+            std::make_move_iterator(snapshot.begin()),
+            std::make_move_iterator(threshold)
+        };
     }
 
     void SearchEngine::erase(const std::string& token)

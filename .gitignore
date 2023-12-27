@@ -1,5 +1,4 @@
-/vault/train/
-/vault/test/
 /src/network/generator/.idea
 /src/network/parser/.idea
 /.idea
+/vault/

@@ -63,7 +63,7 @@ TEST(Anechka, ContextSearchTest)
     /**
      * The test assumes that there is a lot of documents containing the word "America" in directory vault/test
      */
-    const std::filesystem::path path = "../vault/test";
+    const std::filesystem::path path = "../vault/imdb/test";
     ASSERT_TRUE(std::filesystem::exists(path));
 
     auto anechkaPtr = std::make_unique<anechka::Anechka>("../test/config/config.json");
@@ -107,7 +107,7 @@ TEST(Anechka, ContextSearchTest)
 
 TEST(Anechka, Comprehensive)
 {
-    const std::filesystem::path path = "../vault/test/neg";
+    const std::filesystem::path path = "../vault/imdb/test/neg";
     ASSERT_TRUE(std::filesystem::exists(path));
 
     auto anechkaPtr = std::make_unique<anechka::Anechka>("../test/config/config.json");
@@ -131,7 +131,7 @@ TEST(Anechka, Comprehensive)
              auto clientStubPtr = std::make_unique<anechka::ClientStub>();
              for (size_t i = 0; i < 5; i++)
              {
-                 clientStubPtr->RequestRecursiveDirIndexing("../vault/test");
+                 clientStubPtr->RequestRecursiveDirIndexing("../vault/imdb/test");
              }
          });
     }
@@ -153,7 +153,7 @@ TEST(Anechka, Comprehensive)
     {
          clientThreads.emplace_back([&corpus] {
              auto clientStubPtr = std::make_unique<anechka::ClientStub>();
-             for (size_t i = 0; i < 150; i++)
+             for (size_t i = 0; i < 50; i++)
              {
                  std::vector<std::string> sample;
                  std::sample(
@@ -177,7 +177,7 @@ TEST(Anechka, Comprehensive)
     {
          clientThreads.emplace_back([&corpus] {
              auto clientStubPtr = std::make_unique<anechka::ClientStub>();
-             for (size_t i = 0; i < 30; i++)
+             for (size_t i = 0; i < 100; i++)
              {
                  std::vector<std::string> sample;
                  std::sample(

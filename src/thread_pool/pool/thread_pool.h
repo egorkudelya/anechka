@@ -24,16 +24,16 @@ namespace core
         template<typename Invocable>
         WaitableFuture submitTask(Invocable&& invocable, bool isWaiting = false)
         {
-            if (!m_shutDown && m_isInitialized)
+            if (m_shutDown || !m_isInitialized)
             {
-                size_t thisId = std::hash<std::thread::id>{}(std::this_thread::get_id());
-                Task task(CallBack(std::forward<Invocable>(invocable), thisId));
-                WaitableFuture future{std::move(task.getFuture()), isWaiting};
-                m_jobCount++;
-                m_primaryDispatch.pushTaskToLeastBusy(std::move(task));
-                return future;
+                return {};
             }
-            return {};
+            size_t thisId = std::hash<std::thread::id>{}(std::this_thread::get_id());
+            Task task(CallBack(std::forward<Invocable>(invocable), thisId));
+            WaitableFuture future{std::move(task.getFuture()), isWaiting};
+            m_jobCount++;
+            m_primaryDispatch.pushTaskToLeastBusy(std::move(task));
+            return future;
         }
 
     private:

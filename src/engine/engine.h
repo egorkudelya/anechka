@@ -7,8 +7,9 @@ namespace core
 {
     namespace detail
     {
-        const auto delims = {';', ' ', '(', ')', '\"', '.', '?', '!',
-                             ',', ':', '-', '\n', '\t', '\'', '/', '>'};
+        const auto delims = {'\t', '\r', '\n', ' ', ',', '.', ';', ':', '\'', '\"', '!', '?', '@',
+                             '#', '$', '%', '^','&', '*', '_', '-', '=', '+', '`', '~', '/', '\\',
+                             '(', ')', '[', ']', '{', '}', '<', '>'};
 
         template<typename Begin, typename End>
         auto tokenizeRange(Begin begin, End end, bool toLowercase)
@@ -26,7 +27,9 @@ namespace core
             for (auto p = begin;; ++p)
             {
                 auto q = p;
-                p = std::find_first_of(p, end, delims.begin(), delims.end());
+                p = std::find_if_not(p, end, [](char ch) {
+                    return utils::isLetter(ch) || ch == '\'';
+                });
 
                 if (p != q)
                 {
@@ -90,6 +93,7 @@ namespace core
     struct SearchEngineParams
     {
         size_t size;
+        size_t docs;
         size_t threads;
         float maxLF;
         bool toLowercase;
@@ -109,7 +113,7 @@ namespace core
         bool indexTxtFile(std::string&& strPath);
         void insert(std::string&& token, const std::string& doc, DocStat&& docStat, size_t pos);
         void erase(const std::string& token);
-        ConstTokenRecordPtr search(const std::string& token, bool& found) const;
+        ConstTokenRecordPtr search(std::string token, bool& found) const;
         tfidf::RankedDocs searchQuery(std::string query);
         void cache(const std::string& key, const std::string& json, CacheType::Type cacheType);
         cache::CacheEntry searchCache(const std::string& key, CacheType::Type cacheType, bool& found) const;

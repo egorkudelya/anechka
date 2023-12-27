@@ -1,13 +1,14 @@
 #pragma once
 
+#include "iproxy.h"
 #include "json_spec.h"
-#include <memory>
-#include <functional>
-#include <unordered_set>
-#include <list>
-#include <shared_mutex>
-#include <mutex>
 #include <atomic>
+#include <functional>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <unordered_set>
 
 namespace core
 {
@@ -16,23 +17,38 @@ namespace core
     {
         class BucketType
         {
+            friend class IterableProxy<const USet<Value, Hash>>;
+
             using BucketValue = Value;
             using BucketData = std::unordered_set<BucketValue>;
-            using BucketIterator = typename BucketData::iterator;
 
-            BucketIterator findUnsafe(const BucketValue& value)
+            auto begin()
             {
-                return m_data.find(value);
+                /**
+                * Not intended for direct use
+                */
+                return m_data.begin();
+            }
+
+            auto end()
+            {
+                /**
+                * Not intended for direct use
+                */
+                return m_data.end();
             }
 
         public:
+            using Iterator = typename BucketData::iterator;
+            using ConstIterator = typename BucketData::const_iterator;
+
             template<typename URValue>
             void addIfNotPresent(URValue&& value, bool& isPresentAlready)
             {
-                static_assert(std::is_same_v<Value, std::decay_t<URValue>>);
+                static_assert(std::is_constructible_v<Value, std::decay_t<URValue>>);
 
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
-                BucketIterator record = findUnsafe(value);
+                Iterator record = findUnsafe(value);
                 if (record == m_data.end())
                 {
                     isPresentAlready = false;
@@ -45,7 +61,7 @@ namespace core
             void erase(const Value& value, bool& isErased)
             {
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
-                BucketIterator record = findUnsafe(value);
+                Iterator record = findUnsafe(value);
                 if (record == m_data.end())
                 {
                     isErased = false;
@@ -58,19 +74,12 @@ namespace core
             bool contains(const Value& value) const
             {
                 std::shared_lock<std::shared_mutex> lock(m_mtx);
-                BucketIterator record = findUnsafe(value);
+                const ConstIterator record = findUnsafe(value);
                 if (record == m_data.end())
                 {
                     return false;
                 }
                 return true;
-            }
-
-            std::list<Value> snapshot() const
-            {
-                std::list<Value> values;
-                std::shared_lock<std::shared_mutex> lock(m_mtx);
-                return std::list<Value>(m_data.begin(), m_data.end());
             }
 
             Json serialize() const
@@ -84,12 +93,34 @@ namespace core
                 return bucket;
             }
 
+            size_t size() const
+            {
+                std::shared_lock<std::shared_mutex> lock(m_mtx);
+                return m_data.size();
+            }
+
         private:
+            Iterator findUnsafe(const BucketValue& value)
+            {
+                return m_data.find(value);
+            }
+
+            ConstIterator findUnsafe(const BucketValue& value) const
+            {
+                return std::as_const(m_data).find(value);
+            }
+
             BucketData m_data;
             mutable std::shared_mutex m_mtx;
         };
 
         BucketType& getBucket(const Value& value)
+        {
+            const size_t bucketIndex = m_hasher(value) % m_buckets.size();
+            return *m_buckets[bucketIndex];
+        }
+
+        const BucketType& getBucket(const Value& value) const
         {
             const size_t bucketIndex = m_hasher(value) % m_buckets.size();
             return *m_buckets[bucketIndex];
@@ -112,6 +143,7 @@ namespace core
 
     public:
         using ValueType = Value;
+        using BucketType = BucketType;
         using HashType = Hash;
 
         explicit USet(size_t reserveSize = 9)
@@ -124,8 +156,9 @@ namespace core
         template<typename URValue>
         void addIfNotPresent(URValue&& value)
         {
-            static_assert(std::is_same_v<Value, std::decay_t<URValue>>);
+            static_assert(std::is_constructible_v<Value, std::decay_t<URValue>>);
 
+            std::shared_lock<std::shared_mutex> lock(m_globalMtx);
             bool isPresentAlready;
             getBucket(value).addIfNotPresent(std::forward<URValue>(value), isPresentAlready);
             if (!isPresentAlready)
@@ -136,6 +169,7 @@ namespace core
 
         bool erase(const Value& value)
         {
+            std::shared_lock<std::shared_mutex> lock(m_globalMtx);
             bool isErased;
             getBucket(value).erase(value, isErased);
             if (isErased)
@@ -148,16 +182,6 @@ namespace core
         bool contains(const Value& value) const
         {
             return getBucket(value).contains(value);
-        }
-
-        std::list<Value> snapshot() const
-        {
-            std::list<Value> values;
-            for (const auto& bucket: m_buckets)
-            {
-                values.splice(values.end(), bucket->snapshot());
-            }
-            return values;
         }
 
         Json serialize() const
@@ -175,6 +199,11 @@ namespace core
                 }
             }
             return set;
+        }
+
+        inline auto iterate() const
+        {
+            return IterableProxy<const USet<ValueType, HashType>, std::unique_lock>(m_buckets, m_globalMtx);
         }
 
         size_t size() const noexcept
@@ -197,6 +226,7 @@ namespace core
         }
 
     private:
+        mutable std::shared_mutex m_globalMtx;
         const std::vector<std::unique_ptr<BucketType>> m_buckets;
         std::atomic<size_t> m_size;
         Hash m_hasher;

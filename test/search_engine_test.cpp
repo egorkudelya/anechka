@@ -3,7 +3,7 @@
 
 TEST(SearchEngineTest, Basic)
 {
-    auto engine = std::make_unique<core::SearchEngine>(core::SearchEngineParams{25, 8, 0.75, true});
+    auto engine = std::make_unique<core::SearchEngine>(core::SearchEngineParams{25, 1, 8, 0.75, true});
 
     engine->indexTxtFile("../test/data/sample.txt");
 
@@ -22,7 +22,7 @@ TEST(SearchEngineTest, Basic)
     EXPECT_FALSE(found);
 
     engine->dump("dump.json");
-    auto restoredEngine = std::make_unique<core::SearchEngine>(core::SearchEngineParams{25, 8, 0.75});
+    auto restoredEngine = std::make_unique<core::SearchEngine>(core::SearchEngineParams{25, 1, 8, 0.75});
 
     bool stale;
     restoredEngine->restore("dump.json", stale);

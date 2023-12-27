@@ -11,11 +11,11 @@ namespace std
     template<typename K, typename V>
     struct hash<std::pair<K, V>>
     {
-        inline size_t operator()(const std::pair<K, V>& v) const
+        inline size_t operator()(const std::pair<K, V>& pair) const
         {
-            size_t seed = 0;
-            utils::hash_combine(seed, v.first);
-            utils::hash_combine(seed, v.second);
+            size_t seed = 0xbc9f1d34;
+            utils::hash_combine(seed, pair.first);
+            utils::hash_combine(seed, pair.second);
             return seed;
         }
     };
@@ -30,7 +30,7 @@ namespace core
     class Shard
     {
     public:
-        Shard(float maxLoadFactor, size_t expectedTokenCount);
+        Shard(float maxLoadFactor, size_t estTokenCount, size_t estDocCount);
         void insert(std::string&& token, const std::string& doc, DocStat&& docStat, size_t pos);
         ConstTokenRecordPtr search(const std::string& token, bool& exists) const;
         void erase(const std::string& token);

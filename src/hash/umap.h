@@ -17,29 +17,33 @@ namespace core
     class SUMap
     {
         using BucketValue = std::pair<Key, Value>;
-
         class BucketType
         {
+            friend class IterableProxy<const SUMap<Key, Value, Hash>>;
+
             using BucketData = std::list<BucketValue>;
-            using BucketIterator = typename BucketData::iterator;
             using ConstBucketIterator = typename BucketData::const_iterator;
 
-            BucketIterator findUnsafe(const Key& key)
+            auto begin()
             {
-                return std::find_if(m_data.begin(), m_data.end(), [&](const BucketValue& item) {
-                    return item.first == key;
-                });
+                /**
+                * Not intended for direct use
+                */
+                return m_data.begin();
             }
 
-            ConstBucketIterator findUnsafe(const Key& key) const
+            auto end()
             {
-                return std::find_if(m_data.cbegin(), m_data.cend(), [&](const BucketValue& item) {
-                    return item.first == key;
-                });
+                /**
+                * Not intended for direct use
+                */
+                return m_data.end();
             }
 
         public:
-            bool exists(const Key& key) const
+            using Iterator = typename BucketData::iterator;
+
+            bool contains(const Key& key) const
             {
                 std::shared_lock<std::shared_mutex> lock(m_mtx);
                 return findUnsafe(key) != m_data.end();
@@ -57,26 +61,33 @@ namespace core
             }
 
             template<typename Callback>
-            void mutate(const Key& key, bool& isNew, Callback&& callback)
+            void mutate(const Key& key, int& diff, Callback&& callback)
             {
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
-                const BucketIterator record = findUnsafe(key);
+                const Iterator record = findUnsafe(key);
+                bool shouldErase = false;
                 if (record == m_data.end())
                 {
-                    m_data.push_back(std::make_pair(key, callback(record, false)));
-                    isNew = true;
+                    m_data.push_back(std::make_pair(key, callback(record, false, shouldErase)));
+                    diff = 1;
+                    return;
+                }
+                callback(record, true, shouldErase);
+                if (shouldErase)
+                {
+                    m_data.erase(record);
+                    diff = -1;
                 }
                 else
                 {
-                    callback(record, true);
-                    isNew = false;
+                    diff = 0;
                 }
             }
 
             void insert(const Key& key, const Value& value, bool& isNew)
             {
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
-                const BucketIterator record = findUnsafe(key);
+                const Iterator record = findUnsafe(key);
                 if (record == m_data.end())
                 {
                     m_data.push_back(std::make_pair(key, value));
@@ -92,7 +103,7 @@ namespace core
             void emplace(BucketValue&& bucket, bool& isNew)
             {
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
-                BucketIterator record = findUnsafe(bucket.first);
+                Iterator record = findUnsafe(bucket.first);
                 if (record == m_data.end())
                 {
                     m_data.emplace_back(std::move(bucket));
@@ -108,7 +119,7 @@ namespace core
             void erase(const Key& key, bool& isErased)
             {
                 std::unique_lock<std::shared_mutex> lock(m_mtx);
-                BucketIterator record = findUnsafe(key);
+                Iterator record = findUnsafe(key);
                 if (record == m_data.end())
                 {
                     isErased = false;
@@ -138,7 +149,7 @@ namespace core
                 {
                     return defaultKey;
                 }
-                BucketIterator target = m_data.begin();
+                Iterator target = m_data.begin();
                 m_data.erase(target);
                 return target->first;
             }
@@ -156,7 +167,27 @@ namespace core
                 return bucket;
             }
 
+            size_t size() const
+            {
+                std::shared_lock<std::shared_mutex> lock(m_mtx);
+                return m_data.size();
+            }
+
         private:
+            Iterator findUnsafe(const Key& key)
+            {
+                return std::find_if(m_data.begin(), m_data.end(), [&](const BucketValue& item) {
+                    return item.first == key;
+                });
+            }
+
+            ConstBucketIterator findUnsafe(const Key& key) const
+            {
+                return std::find_if(m_data.cbegin(), m_data.cend(), [&](const BucketValue& item) {
+                    return item.first == key;
+                });
+            }
+
             BucketData m_data;
             mutable std::shared_mutex m_mtx;
         };
@@ -194,6 +225,7 @@ namespace core
 
     public:
         using KeyType = Key;
+        using BucketType = BucketType;
         using ValueType = Value;
 
         explicit SUMap(size_t reserveSize = 419)
@@ -204,9 +236,9 @@ namespace core
         {
         }
 
-        bool exists(const Key& key) const
+        bool contains(const Key& key) const
         {
-            return getBucket(key).exists(key);
+            return getBucket(key).contains(key);
         }
 
         Value get(const Key& key, const Value& defaultValue = Value()) const
@@ -222,16 +254,15 @@ namespace core
             * choose to either modify an existing value if the second callback parameter
             * is true or return a new one if the said parameter is false.
             */
-            bool isNew;
-            getBucket(key).mutate(key, isNew, std::forward<Callback>(callback));
-            if (isNew)
-            {
-                m_size++;
-            }
+            std::shared_lock<std::shared_mutex> lock(m_globalMtx);
+            int diff = 0;
+            getBucket(key).mutate(key, diff, std::forward<Callback>(callback));
+            m_size += diff;
         }
 
         void insert(const Key& key, const Value& value)
         {
+            std::shared_lock<std::shared_mutex> lock(m_globalMtx);
             bool isNew;
             getBucket(key).insert(key, value, isNew);
             if (isNew)
@@ -242,6 +273,7 @@ namespace core
 
         void emplace(BucketValue&& bucket)
         {
+            std::shared_lock<std::shared_mutex> lock(m_globalMtx);
             bool isNew;
             getBucket(bucket.first).emplace(std::move(bucket), isNew);
             if (isNew)
@@ -252,6 +284,7 @@ namespace core
 
         bool erase(const Key& key)
         {
+            std::shared_lock<std::shared_mutex> lock(m_globalMtx);
             bool isErased;
             getBucket(key).erase(key, isErased);
             if (isErased)
@@ -263,6 +296,7 @@ namespace core
 
         void drop()
         {
+            std::shared_lock<std::shared_mutex> lock(m_globalMtx);
             if (m_size == 0)
             {
                 return;
@@ -286,6 +320,8 @@ namespace core
             std::uniform_int_distribution<std::mt19937::result_type> dist(0, m_buckets.size() - 1);
 
             Key erased = defaultKey;
+
+            std::shared_lock<std::shared_mutex> lock(m_globalMtx);
             for (size_t i = 0; i < m_buckets.size(); i++)
             {
                 erased = getBucket(dist(rng), true).eraseRandom(defaultKey);
@@ -300,9 +336,22 @@ namespace core
         std::list<BucketValue> snapshot() const
         {
             std::list<BucketValue> values;
+            values.reserve(m_size);
             for (const auto& bucket: m_buckets)
             {
                 values.splice(values.end(), bucket->snapshot());
+            }
+            return values;
+        }
+
+        std::vector<BucketValue> snapshotDense() const
+        {
+            std::vector<BucketValue> values;
+            values.reserve(m_size);
+            for (const auto& bucket: m_buckets)
+            {
+                const auto& bucketSnap = bucket->snapshot();
+                values.insert(values.end(), bucketSnap.begin(), bucketSnap.end());
             }
             return values;
         }
@@ -331,6 +380,11 @@ namespace core
             return lf;
         }
 
+        inline auto iterate()
+        {
+            return IterableProxy<const SUMap<KeyType, ValueType, Hash>, std::unique_lock>(m_buckets, m_globalMtx);
+        }
+
         Json serialize() const
         {
             Json map;
@@ -349,6 +403,7 @@ namespace core
         }
 
     private:
+        std::shared_mutex m_globalMtx;
         const std::vector<std::unique_ptr<BucketType>> m_buckets;
         std::atomic<size_t> m_size;
         const size_t m_bucketCount;

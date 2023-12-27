@@ -14,11 +14,22 @@ namespace utils
         return std::dynamic_pointer_cast<DerivedType>(basePtr);
     }
 
+    template <typename T>
+    T getJsonProperty(const Json& config, const std::string& property, T backup)
+    {
+        return !config[property].is_null() ? config[property].get<T>() : backup;
+    }
+
     inline void toLower(std::string& data)
     {
         std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) {
             return std::tolower(c);
         });
+    }
+
+    inline bool isLetter(char ch)
+    {
+        return std::isalpha(static_cast<unsigned char>(ch));
     }
 
     inline void removeControlChars(std::string& data)
@@ -27,6 +38,17 @@ namespace utils
                                   [](char c) {
                                       return std::iscntrl(c);
                                   }), data.end());
+    }
+
+    inline std::string lrtrim(std::string_view data)
+    {
+        const auto begin(data.find_first_not_of(" \t\n\r\f\v"));
+        data.remove_prefix(std::min(begin, data.size()));
+
+        const auto end(data.find_last_not_of(" \t\n\r\f\v"));
+        data.remove_suffix(std::min(data.size() - end - 1, data.size()));
+
+        return std::string{data};
     }
 
     inline void removeLeading(std::string& str, char charToRemove)

@@ -72,7 +72,7 @@ namespace anechka
         std::string body{begin, end};
         utils::removeControlChars(body);
 
-        return "..." + std::move(body) + "...";
+        return "..." + utils::lrtrim(body) + "...";
     }
 
     Anechka::Anechka(const std::string& configPath)
@@ -99,17 +99,18 @@ namespace anechka
         const Json config = Json::parse(file);
         const size_t hardwareThreads = std::thread::hardware_concurrency();
 
-        m_port = !config["port"].is_null() ? config["port"].get<int>() : 4444;
-        m_threadCount = !config["serv_threads"].is_null() ? config["serv_threads"].get<size_t>() : hardwareThreads;
-        m_persistent = config["is_persistent"].is_null() || config["is_persistent"].get<bool>();
-        bool toLowercase = config["to_lowercase"].is_null() || config["to_lowercase"].get<bool>();
-        bool restoring = config["is_restoring_on_start"].is_null() || config["is_restoring_on_start"].get<bool>();
-        float maxLF = !config["max_load_factor"].is_null() ? config["max_load_factor"].get<float>() : 0.75;
-        size_t size = !config["est_unique_tokens"].is_null() ? config["est_unique_tokens"].get<size_t>() : 3e5;
-        size_t threads = !config["se_threads"].is_null() ? config["se_threads"].get<size_t>() : hardwareThreads;
-        float cacheSize = !config["cache_size"].is_null() ? config["cache_size"].get<float>() : 0.25;
+        m_port = utils::getJsonProperty<int>(config, "port", 4444);
+        m_threadCount = utils::getJsonProperty<size_t>(config, "serv_threads", hardwareThreads);
+        m_persistent = utils::getJsonProperty<bool>(config, "is_persistent", false);
+        bool toLowercase = utils::getJsonProperty<bool>(config, "to_lowercase", false);
+        bool restoring = utils::getJsonProperty<bool>(config, "is_restoring_on_start", false);
+        float maxLF = utils::getJsonProperty<float>(config, "max_load_factor", 0.75);
+        size_t size = utils::getJsonProperty<size_t>(config, "est_distinct_tokens", 3e5);
+        size_t docs = utils::getJsonProperty<size_t>(config, "est_docs", 10e3);
+        size_t threads = utils::getJsonProperty<size_t>(config, "se_threads", hardwareThreads);
+        float cacheSize = utils::getJsonProperty<float>(config, "cache_size", 0.25);
 
-        const core::SearchEngineParams engineParams{size, threads, maxLF, toLowercase, cacheSize};
+        const core::SearchEngineParams engineParams{size, docs, threads, maxLF, toLowercase, cacheSize};
         m_searchEngine = std::make_unique<core::SearchEngine>(engineParams);
 
         if (restoring)
@@ -117,7 +118,7 @@ namespace anechka
             bool stale;
             if (!m_searchEngine->restore(m_dumpPath, stale))
             {
-                std::cerr << "Failed to load index from dump. Make sure it exists in the dump/ directory\n";
+                std::cerr << "Failed to load index from dump. Make sure it contains in the dump/ directory\n";
                 return;
             }
             if (stale)
@@ -143,7 +144,7 @@ namespace anechka
             std::stringstream warning;
             warning << "The cluster is overloaded, the current load factor: " << m_searchEngine->loadFactor()
                     << ". This means more collisions during further insertions and slower response times. "
-                       "Please adjust est_unique_tokens and/or max_load_factor accordingly";
+                       "Please adjust est_distinct_tokens and/or max_load_factor accordingly";
             responsePtr->getEnginestatus() = warning.str();
         }
         else
@@ -171,7 +172,7 @@ namespace anechka
             std::stringstream warning;
             warning << "The cluster is overloaded, the current load factor: " << m_searchEngine->loadFactor()
                     << ". This means more collisions during further insertions and slower response times. "
-                       "Please adjust est_unique_tokens and/or max_load_factor accordingly";
+                       "Please adjust est_distinct_tokens and/or max_load_factor accordingly";
             responsePtr->getEnginestatus() = warning.str();
         }
         else
@@ -196,16 +197,19 @@ namespace anechka
 
         bool found = false;
         auto tokenPtr = m_searchEngine->search(token, found);
-
         if (found)
         {
             std::vector<std::string> final;
-            auto snapshot = tokenPtr->snapshot();
-            final.reserve(snapshot.size());
-            for (auto&&[path, pos]: snapshot)
+            size_t threshold = 50;
+            for (auto&&[path, pos]: tokenPtr->iterate())
             {
+                if (threshold == 0)
+                {
+                    break;
+                }
                 Json docEntry{{"path", path}, {"pos", pos}};
                 final.push_back(docEntry.dump(2));
+                threshold--;
             }
             responsePtr->getResponse() = final;
         }
@@ -260,16 +264,13 @@ namespace anechka
         }
 
         std::vector<std::string>& index = responsePtr->getResponses();
-
         std::unordered_multimap<std::string, std::string> contexts;
-        for (const auto& pair: tokenPtr->serialize())
+        for (auto&&[path, i]: tokenPtr->iterate())
         {
-            size_t i = pair.at(1);
-            const std::string& path = pair.at(0);
             std::unique_ptr<const MMapASCII> mmap;
             try
             {
-                mmap = std::make_unique<const MMapASCII>(path);
+                mmap = std::make_unique<const MMapASCII>(std::string{path});
             }
             catch (const std::exception& err)
             {
@@ -279,8 +280,13 @@ namespace anechka
             contexts.emplace(path, escape(contextualize(mmap, i)));
         }
 
+        size_t threshold = 50;
         for (auto iter = contexts.begin(); iter != contexts.end();)
         {
+            if (threshold == 0)
+            {
+                break;
+            }
             Json jcontexts;
             auto end = contexts.equal_range(iter->first).second;
 
@@ -295,6 +301,7 @@ namespace anechka
             final["contexts"] = std::move(jcontexts.dump(2));
 
             index.push_back(final.dump(2));
+            threshold--;
         }
         responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
         m_searchEngine->cache(token, Json(index).dump(), core::CacheType::Type::ContextSearch);
