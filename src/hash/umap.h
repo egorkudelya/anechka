@@ -21,7 +21,7 @@ namespace core
         {
             friend class IterableProxy<const SUMap<Key, Value, Hash>>;
 
-            using BucketData = std::list<BucketValue>;
+            using BucketData = std::vector<BucketValue>;
             using ConstBucketIterator = typename BucketData::const_iterator;
 
             auto begin()
