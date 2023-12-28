@@ -2,10 +2,10 @@
 
 #include "../primitives/callback.h"
 #include "../primitives/task.h"
+#include "umap.h"
 #include "safe_queue.h"
 #include <set>
 #include <shared_mutex>
-#include <unordered_map>
 
 namespace core
 {
@@ -16,7 +16,7 @@ namespace core
     class QueueDispatch
     {
         using Set = std::set<QueuePtr, QueueCompare>;
-        using Map = std::unordered_map<size_t, QueuePtr>;
+        using Map = SUMap<size_t, QueuePtr>;
 
     public:
         QueueDispatch() = default;
@@ -33,7 +33,6 @@ namespace core
     private:
         std::condition_variable_any m_cv;
         mutable std::shared_mutex m_setMtx;
-        mutable std::shared_mutex m_mapMtx;
         Set m_set;
         Map m_map;
     };

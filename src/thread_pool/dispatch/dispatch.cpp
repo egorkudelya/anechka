@@ -10,23 +10,21 @@ namespace core
 
     void QueueDispatch::assignThreadIdToQueue(size_t threadId, const QueuePtr& queuePtr)
     {
-        std::unique_lock<std::shared_mutex> lock(m_mapMtx);
-        m_map[threadId] = queuePtr;
+        m_map.insert(threadId, queuePtr);
     }
 
     Task QueueDispatch::extractTaskByThreadId(size_t threadId)
     {
-        Map::iterator iter;
+        QueuePtr queue;
         {
-            std::shared_lock<std::shared_mutex> lock(m_mapMtx);
-            iter = m_map.find(threadId);
-            if (iter == m_map.end())
+            queue = m_map.get(threadId, nullptr);
+            if (!queue)
             {
                 return {};
             }
         }
         Task task;
-        iter->second->pop(task);
+        queue->pop(task);
         return task;
     }
 
@@ -57,8 +55,7 @@ namespace core
 
     void QueueDispatch::clear()
     {
-        std::unique_lock<std::shared_mutex> lock(m_mapMtx);
-        for (auto&& bucket: m_map)
+        for (auto&& bucket: m_map.iterate())
         {
             bucket.second->signalAbort();
         }
