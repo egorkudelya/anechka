@@ -192,6 +192,24 @@ namespace core
             mutable std::shared_mutex m_mtx;
         };
 
+        class RandomEngine
+        {
+        public:
+            inline RandomEngine()
+                : m_eng(m_dev())
+            {
+            }
+
+            inline std::mt19937& getRandEngine()
+            {
+                return m_eng;
+            }
+
+        private:
+            std::random_device m_dev;
+            std::mt19937 m_eng;
+        };
+
         const BucketType& getBucket(const Key& key) const
         {
             const size_t bucketIndex = m_hasher(key) % m_buckets.size();
@@ -315,16 +333,12 @@ namespace core
             * will remain constant during the lifetime of SUmap.
             */
 
-            std::random_device dev;
-            std::mt19937 rng(dev());
-            std::uniform_int_distribution<std::mt19937::result_type> dist(0, m_buckets.size() - 1);
-
             Key erased = defaultKey;
-
+            std::uniform_int_distribution<std::mt19937::result_type> dist(0, m_buckets.size() - 1);
             std::shared_lock<std::shared_mutex> lock(m_globalMtx);
             for (size_t i = 0; i < m_buckets.size(); i++)
             {
-                erased = getBucket(dist(rng), true).eraseRandom(defaultKey);
+                erased = getBucket(dist(m_randEngine.getRandEngine()), true).eraseRandom(defaultKey);
                 if (erased != defaultKey)
                 {
                     break;
@@ -408,6 +422,7 @@ namespace core
         std::atomic<size_t> m_size;
         const size_t m_bucketCount;
         const Hash m_hasher;
+        RandomEngine m_randEngine;
     };
 
 }// namespace core
