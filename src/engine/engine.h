@@ -52,7 +52,7 @@ namespace core
             ContextSearch = 1,
             QuerySearch = 2,
         };
-        static const Type All[] = {ContextSearch, QuerySearch};
+        const Type All[] = {ContextSearch, QuerySearch};
     }
 
     namespace cache
