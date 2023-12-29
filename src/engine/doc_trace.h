@@ -15,7 +15,7 @@ namespace core
     class DocTrace
     {
         /**
-        * DocTrace is responsible for keeping track of currently indexed documents and its statistics
+        * DocTrace is responsible for keeping track of currently indexed documents and their statistics
         * (e.g the number of tokens in a particular document). Documents are reference-counted and those
         * not in use are deleted using eraseOrDecrement.
         */
