@@ -2,8 +2,6 @@
 
 namespace core
 {
-    // TODO
-    static const float tokenDTraceShare = 0.00275f;
 
     Shard::Shard(float maxLoadFactor, size_t estTokenCount, size_t estDocCount)
         : m_maxLoadFactor(maxLoadFactor)
@@ -16,8 +14,11 @@ namespace core
     {
         std::string_view ref = m_docTrace.addOrIncrement(doc, std::move(docStat));
 
-        auto callback = [dcSize = m_docTrace.size(), ref, pos = pos]
-                        (const auto& it, bool iterValid, bool& shouldErase)
+        const float forecast = log2f(m_docTrace.getAvgTokenCount());
+        const size_t expectedLoad = forecast > 9 ? ceil(forecast) : 9;
+
+        auto callback = [expectedLoad, ref, pos = pos]
+                        (auto& it, bool iterValid, bool& shouldErase)
         {
             shouldErase = false;
             if (iterValid)
@@ -25,7 +26,6 @@ namespace core
                 it->second->addIfNotPresent(std::make_pair(ref, pos));
                 return TokenRecordPtr{};
             }
-            size_t expectedLoad = dcSize * tokenDTraceShare;
             auto newRecord = std::make_shared<TokenRecord>(expectedLoad);
             newRecord->addIfNotPresent(std::make_pair(ref, pos));
             return newRecord;
@@ -92,7 +92,7 @@ namespace core
         return m_docTrace.size();
     }
 
-    size_t Shard::tokenCountPerDoc(const std::string& path) const
+    size_t Shard::tokenCountForDoc(const std::string& path) const
     {
         return m_docTrace.getTokenCount(path);
     }

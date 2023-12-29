@@ -205,7 +205,7 @@ namespace core
                         for (auto&&[pathView, freq]: hist)
                         {
                             std::string path{pathView};
-                            const float tf = (float)freq / m_storage->tokenCountPerDoc(path);
+                            const float tf = (float)freq / m_storage->tokenCountForDoc(path);
                             rankDocs(ranks, path, tf * idf);
                         }
                     },

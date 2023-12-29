@@ -12,6 +12,14 @@ namespace core
         json.at("tokenCount").get_to(docStat.tokenCount);
     }
 
+    static float approxRollingAverage(size_t size, float avg, float newSample)
+    {
+        avg -= avg / size;
+        avg += newSample / size;
+
+        return avg;
+    }
+
     DocTrace::DocTrace(size_t reserve)
         : m_trace(reserve)
         , m_stats(reserve)
@@ -36,6 +44,7 @@ namespace core
         {
             m_trace.mutate(path, callback);
             m_stats.insert(hook, docStat);
+            m_avgTokenCount = approxRollingAverage(m_trace.size(), m_avgTokenCount, (float)docStat.tokenCount);
         }
 
         return hook;
@@ -69,6 +78,11 @@ namespace core
     size_t DocTrace::getTokenCount(const std::string& path) const
     {
         return m_stats.get(path).tokenCount;
+    }
+
+    float DocTrace::getAvgTokenCount() const
+    {
+        return m_avgTokenCount;
     }
 
     size_t DocTrace::size() const

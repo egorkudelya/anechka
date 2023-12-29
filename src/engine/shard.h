@@ -39,7 +39,7 @@ namespace core
         bool isExpandable() const;
         size_t tokenCount() const;
         size_t docCount() const;
-        size_t tokenCountPerDoc(const std::string& path) const;
+        size_t tokenCountForDoc(const std::string& path) const;
         Json serialize() const;
 
     private:

@@ -25,10 +25,12 @@ namespace core
         void eraseOrDecrement(const std::string& path);
         size_t getRefCount(const std::string& path) const;
         size_t getTokenCount(const std::string& path) const;
+        float getAvgTokenCount() const;
         size_t size() const;
         Json serialize() const;
 
     private:
+        std::atomic<float> m_avgTokenCount{0.0f};
         SUMap<std::string, size_t> m_trace;
         SUMap<std::string_view, DocStat> m_stats;
     };
