@@ -7,10 +7,6 @@ namespace core
 {
     namespace detail
     {
-        const auto delims = {'\t', '\r', '\n', ' ', ',', '.', ';', ':', '\'', '\"', '!', '?', '@',
-                             '#', '$', '%', '^','&', '*', '_', '-', '=', '+', '`', '~', '/', '\\',
-                             '(', ')', '[', ']', '{', '}', '<', '>'};
-
         template<typename Begin, typename End>
         auto tokenizeRange(Begin begin, End end, bool toLowercase)
         {

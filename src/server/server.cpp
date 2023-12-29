@@ -41,8 +41,8 @@ namespace anechka
             return {};
         }
 
-        ssize_t leftCursor = idx - 10;
-        ssize_t rightCursor = idx + 10;
+        int64_t leftCursor = idx - 10;
+        int64_t rightCursor = idx + 10;
         while (leftCursor > 0 && rightCursor < mmap->size())
         {
             bool l = std::find(delims.begin(), delims.end(), (*mmap)[leftCursor]) == delims.end();
@@ -304,7 +304,7 @@ namespace anechka
             threshold--;
         }
         responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
-        m_searchEngine->cache(token, Json(index).dump(), core::CacheType::Type::ContextSearch);
+        m_searchEngine->cache(token, Json(index).dump(), core::CacheType::ContextSearch);
 
         return responsePtr;
     }
@@ -340,7 +340,7 @@ namespace anechka
         responsePtr->getRankeddocs() = final;
         responsePtr->getTook() = std::to_string(timer.getInterval()) + "ms";
 
-        m_searchEngine->cache(query, {Json(final).dump()}, core::CacheType::Type::QuerySearch);
+        m_searchEngine->cache(query, {Json(final).dump()}, core::CacheType::QuerySearch);
 
         return responsePtr;
     }

@@ -17,8 +17,8 @@ namespace core
         const float forecast = log2f(m_docTrace.getAvgTokenCount());
         const size_t expectedLoad = forecast > 9 ? ceil(forecast) : 9;
 
-        auto callback = [expectedLoad, ref, pos = pos]
-                        (auto& it, bool iterValid, bool& shouldErase)
+        auto callback = [expectedLoad, ref, pos]
+                        (const auto& it, bool iterValid, bool& shouldErase)
         {
             shouldErase = false;
             if (iterValid)
