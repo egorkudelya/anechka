@@ -87,7 +87,7 @@ namespace core
             return first.second > second.second;
         }
 
-        using RankedDocs = std::list<std::pair<std::string, float>>;
+        using RankedDocs = std::vector<std::pair<std::string, float>>;
     }
 
     struct SearchEngineParams
