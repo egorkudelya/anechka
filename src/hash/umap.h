@@ -2,7 +2,7 @@
 
 #include "common.h"
 #include <functional>
-#include <list>
+#include <vector>
 #include <random>
 #include <memory>
 #include <shared_mutex>

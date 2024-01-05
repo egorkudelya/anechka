@@ -118,7 +118,7 @@ namespace anechka
             bool stale;
             if (!m_searchEngine->restore(m_dumpPath, stale))
             {
-                std::cerr << "Failed to load index from dump. Make sure it contains in the dump/ directory\n";
+                std::cerr << "Failed to load index from dump. Make sure it exists in the dump/ directory\n";
                 return;
             }
             if (stale)
